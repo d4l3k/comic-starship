@@ -1,0 +1,281 @@
+<link rel="import" href="../lib/iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
+<link rel="import" href="../lib/iron-ajax/iron-ajax.html">
+<link rel="import" href="../lib/iron-icons/iron-icons.html">
+<link rel="import" href="../lib/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../lib/paper-dialog/paper-dialog.html">
+<link rel="import" href="../lib/paper-input/paper-input.html">
+<link rel="import" href="../lib/paper-material/paper-material.html">
+<link rel="import" href="../lib/polymer/polymer.html">
+<dom-module id="comic-page">
+  <style>
+    :host {
+      display: block;
+    }
+    paper-material {
+      padding: 10px;
+    }
+    #comics {
+      max-width: 900px;
+      margin: 0 auto;
+      padding-bottom: 61px;
+    }
+    .right {
+      float: right;
+    }
+    .left {
+      float: left;
+    }
+    #nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: black;
+      color: white;
+      text-align: center;
+    }
+    #nav > span {
+      line-height: 41px;
+    }
+    .cached {
+      display: none;
+    }
+    .info:active .cached {
+      display: inherit;
+    }
+    .info:active .max {
+      display: none;
+    }
+  </style>
+  <template>
+    <div id="comics">
+    </div>
+    <paper-material id="nav" elevation="1">
+      <paper-button class="left" on-tap="prev">Previous</paper-button>
+      <span class="info" on-down="updateCachedCount">
+        <span>{{page}}</span>
+        <span class="cached">
+          (+<span>{{cachedCount}}</span>)
+        </span>
+        <span class="max">
+          / <span>{{comic.max_idx}}</span>
+        </span>
+      </span>
+      <paper-icon-button icon="settings" style="color: white;" on-tap="openOptions"></paper-icon-button>
+      <paper-button class="right" on-tap="next">Next</paper-button>
+    </paper-material>
+    <paper-dialog id="options" with-backdrop>
+      <h2>Comic Options</h2>
+      <paper-input label="Number of Pages to Cache" type="number" value="{{toCacheCount}}"></paper-input>
+      <paper-button on-tap="precache">precache</paper-button>
+      <paper-button on-tap="clearOld">clear Old</paper-button>
+    </paper-dialog>
+
+    <iron-ajax
+      auto
+      url="{{computeImageURL(slug, page, 0)}}"
+      handle-as="text"
+      on-response="handleResponse"
+      debounce-duration="300"></iron-ajax>
+  </template>
+
+</dom-module>
+<script>
+  var CACHE = {};
+  Polymer({
+    is: 'comic-page',
+
+    ready: function() {
+      this.window = window;
+      if (!window.localStorage.loggedIn) {
+        window.location.hash = "/login";
+        return;
+      }
+    },
+
+    properties: {
+      fetchs: {
+        type: Array,
+        value: [-1, 0, 1, 2, 3],
+      },
+      page: {
+        type: Number,
+        observer: 'savePage',
+      },
+      imageURL: {
+        type: String,
+        computed: 'computeImageURL(slug, page, 0)',
+        observer: 'decache',
+      },
+      boundKeys: {
+        type: Array,
+        value: function() {
+          return Object.keys(this.keyBindings).join(' ').split(' ');
+        }
+      },
+      keyEventTarget: {
+        type: Object,
+        value: function() {
+          return document.body;
+        }
+      },
+      cachedCount: {
+        value: 'Loading...',
+      }
+    },
+
+    savePage: function(page) {
+      var key = 'comic:'+this.slug;
+      var self = this;
+      window.localforage.getItem(key).then(function(comic) {
+        comic.idx = parseInt(page, 10);
+        window.localforage.setItem(key, comic);
+        self.comic = comic;
+        $.post('/api/markcomic', self.comic);
+      });
+    },
+
+    decache: function(url) {
+      var self = this;
+      window.localforage.getItem('comic-page:'+url).then(function(urls) {
+        if (urls) {
+          document.body.scrollTop = 0
+          self.$.comics.innerHTML = urls;
+          self.cleanHTML();
+        }
+      });
+    },
+
+    updateCachedCount: function() {
+      var self = this;
+      self.countCached().then(function(cached) {
+        console.log("cached", cached);
+        self.cachedCount = cached;
+      });
+    },
+
+    cleanHTML: function() {
+      $('#comics table[width]').attr('width','');
+    },
+
+    computeImageURL: function(slug, page, offset) {
+      return "/api/comic?slug="+slug+"&p="+(parseInt(page) + offset);
+    },
+
+    next: function() {
+      this.nav(1);
+    },
+
+    prev: function() {
+      this.nav(-1);
+    },
+
+    handleResponse: function(resp,req) {
+      var url = new URL(req.xhr.responseURL);
+      var relURL = url.pathname + url.search;
+      var urls = req.xhr.response;
+      var key = 'comic-page:'+relURL;
+      window.localforage.setItem(key, urls);
+      if (this.imageURL == relURL) {
+        if (!urls) {
+          this.nav(-1);
+        } else {
+          this.$.comics.innerHTML = urls;
+          this.cleanHTML();
+        }
+      } else if (urls){
+        this.preload(urls);
+      }
+    },
+
+    preload: function(sources) {
+      var images = [];
+      for (i = 0, length = sources.length; i < length; ++i) {
+        images[i] = new Image();
+        images[i].src = sources[i];
+      }
+    },
+
+    comicURL: function(comic) {
+      return "#/comic/"+comic.slug+"/"+(comic.idx+1);
+    },
+
+    behaviors: [
+      Polymer.IronA11yKeysBehavior
+    ],
+
+    keyBindings: {
+      'left right': 'navHandler'
+    },
+
+    navHandler: function(e) {
+      switch (e.detail.keyboardEvent.code) {
+      case "ArrowRight":
+        this.nav(1)
+        break;
+      case "ArrowLeft":
+        this.nav(-1)
+        break;
+      }
+    },
+
+    nav: function(dir) {
+      window.location.hash = "#/comic/"+this.slug+"/"+(parseInt(this.page) + dir);
+    },
+
+    countCached: function() {
+      var self = this;
+      return window.localforage.keys().then(function(keys) {
+        var keySet = new Set(keys);
+        for (var i=(self.comic.idx+1); i<=self.comic.max_idx; i++) {
+          var key = 'comic-page:' + self.computeImageURL(self.comic.slug, i, 0);
+          if (!keySet.has(key)) {
+            console.log('missing', key);
+            return i - self.comic.idx - 1;
+          }
+        }
+        return i - self.comic.idx;
+      });
+    },
+
+    openOptions: function() {
+      this.$$('paper-dialog').open();
+    },
+
+    clearOld: function() {
+      for (var i=0;i<this.comic.idx;i++) {
+        var key = 'comic-page:'+this.computeImageURL(this.comic.slug, i, 0);
+        window.localforage.removeItem(key);
+      }
+    },
+
+    precache: function() {
+      this.toCacheCount -= this.cachedCount;
+      this.cacheComicPage(this.comic.idx + this.cachedCount);
+    },
+
+    cacheComicPage: function(page) {
+      var count = parseInt(this.toCacheCount, 10);
+      if (count <= 0) {
+        this.toCacheCount = 0;
+        return;
+      }
+      var self = this;
+      var url = this.computeImageURL(this.comic.slug, page, 0);
+      var key = "comic-page:"+url;
+      console.log('cacheComicPage', page, count);
+      window.localforage.getItem(key).then(function(cachedPage) {
+        self.toCacheCount = count - 1;
+        self.cachedCount += 1;
+        if (cachedPage) {
+          self.cacheComicPage(page + 1);
+        } else {
+          $.get(url, function(resp) {
+            window.localforage.setItem(key, resp);
+            self.cacheComicPage(page + 1);
+          });
+        }
+      });
+    }
+  });
+</script>

@@ -1,0 +1,28 @@
+{
+  "name": "comic-starship",
+  "version": "0.0.0",
+  "authors": [
+    "Tristan Rice <rice@fn.lc>"
+  ],
+  "main": "static/index.html",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "public/lib",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.0.0",
+    "paper-elements": "PolymerElements/paper-elements#~1.0.1",
+    "more-routing": "PolymerLabs/more-routing#~1.0.0",
+    "iron-pages": "PolymerElements/iron-pages#~1.0.2",
+    "app-router": "~2.6.1",
+    "jquery": "~2.1.4",
+    "iron-ajax": "PolymerElements/iron-ajax#~1.0.3",
+    "iron-a11y-keys": "PolymerElements/iron-a11y-keys#~1.0.2",
+    "localforage": "~1.2.7"
+  }
+}

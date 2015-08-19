@@ -1,0 +1,44 @@
+<link rel="import" href="../lib/paper-material/paper-material.html">
+<link rel="import" href="../lib/paper-button/paper-button.html">
+<link rel="import" href="../lib/paper-input/paper-input.html">
+
+<dom-module id="login-page">
+  <style>
+    :host {
+    }
+    paper-material {
+      padding: 10px;
+      margin: 10px;
+    }
+  </style>
+  <template>
+    <paper-material elevation="1">
+      <h1>Login using your Comic Rocket Account</h1>
+      <paper-input label="Username" id="username"></paper-input>
+      <paper-input label="Password" type="password" id="password"></paper-input>
+      <paper-button id="login">Login</paper-button>
+    </paper-material>
+  </template>
+</dom-module>
+<script>
+  Polymer({
+    is: 'login-page',
+    listeners: {
+      'login.tap': 'login',
+    },
+    login: function() {
+      $.post('/api/login', {
+        username: this.$.username.value,
+        password: this.$.password.value,
+      }, function(data, status) {
+        if (data) {
+          window.localStorage.loggedIn = true;
+          window.location.hash = "#";
+        } else {
+          alert("login failed", data, status);
+        }
+        console.log('result', data, status);
+      });
+    },
+  });
+</script>

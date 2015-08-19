@@ -1,0 +1,100 @@
+<link rel="import" href="../lib/polymer/polymer.html">
+<link rel="import" href="../lib/iron-ajax/iron-ajax.html">
+<link rel="import" href="../lib/paper-scroll-header-panel/paper-scroll-header-panel.html">
+<link rel="import" href="../lib/paper-toolbar/paper-toolbar.html">
+<link rel="import" href="../lib/paper-styles/paper-styles.html">
+<link rel="import" href="../lib/paper-styles/typography.html">
+<link rel="import" href="../elements/comic.html">
+<dom-module id="index-page">
+  <style>
+    :root {
+      --default-primary-color: rgba(64,64,64,0.9);
+    }
+    :host {
+      display: block;
+    }
+    paper-scroll-header-panel {
+      height: 100%;
+    }
+    .comics-content {
+      padding: 10px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .paper-font-subhead {
+      @apply(--paper-font-subhead);
+    }
+    paper-toolbar {
+      overflow: hidden;
+    }
+    h2 {
+      font-weight: 200;
+    }
+  </style>
+  <template>
+    <paper-scroll-header-panel condenses>
+      <paper-toolbar>
+        <span class="title">
+          Comic Starship
+        </span> <span class="paper-font-subhead">By <a href="https://fn.lc">Tristan Rice</a></span>
+      </paper-toolbar>
+      <div class="comics-content">
+        <h2>To Read</h2>
+        <template is="dom-repeat" items="{{comicsToRead}}">
+          <comic-card comic="{{item}}"></comic-card>
+        </template>
+        <h2>No New Pages</h2>
+        <template is="dom-repeat" items="{{comicsFinished}}">
+          <comic-card comic="{{item}}"></comic-card>
+        </template>
+      </div>
+    </paper-scroll-header-panel>
+
+    <iron-ajax
+      auto
+      url="/api/comics"
+      handle-as="json"
+      on-response="handleResponse"
+      debounce-duration="300"></iron-ajax>
+  </template>
+</dom-module>
+<script>
+  Polymer({
+    is: 'index-page',
+
+    ready: function() {
+      var self = this;
+      if (!window.localStorage.loggedIn) {
+        window.location.hash = "/login";
+        return;
+      }
+    },
+
+    handleResponse: function(resp,req) {
+      var self = this;
+      var comics =  req.xhr.response;
+      this.comicsToRead = [];
+      this.comicsFinished = [];
+      if (!comics) {
+        window.location.hash = "/login";
+        //window.localStorage.loggedIn = "";
+      } else {
+        comics.forEach(function(comic, i) {
+          var key = 'comic:'+comic.slug;
+          window.localforage.getItem(key).then(function(savedComic) {
+            if (savedComic) {
+              comic.idx = Math.max(comic.idx || 0, savedComic.idx || 0);
+              comics[i] = comic;
+            }
+            if (comic.idx == comic.max_idx) {
+              self.push('comicsFinished', comic);
+            } else {
+              self.push('comicsToRead', comic);
+            }
+            window.localforage.setItem(key, comic);
+          });
+        });
+      }
+    },
+  });
+</script>

@@ -1,0 +1,61 @@
+<link rel="import" href="../lib/polymer/polymer.html">
+<link rel="import" href="../lib/paper-material/paper-material.html">
+<dom-module id="comic-card">
+  <style>
+    :host {
+    }
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+    paper-material {
+      padding: 10px;
+      margin: 30px 0;
+      min-height: 41px;
+      background-color: white;
+    }
+    paper-material > img {
+      display: block;
+      max-width: 100%;
+    }
+    paper-material > paper-button {
+      float: right;
+    }
+    paper-material > h3, paper-material > span  {
+      line-height: 41px;
+    }
+    .right {
+      float: right;
+    }
+    h3 {
+      display: inline-block;
+      font-weight: 400;
+    }
+  </style>
+  <template>
+    <a href="{{comicURL(comic)}}">
+      <paper-material elevation="1">
+        <img src="{{comic.banner_url}}">
+        <h3>{{comic.name}}</h3>
+        <span class="right">
+          <span>{{comic.idx}}</span>/<span>{{comic.max_idx}}</span>
+        </span>
+      </paper-material>
+    </a>
+  </template>
+</dom-module>
+<script>
+  Polymer({
+    is: 'comic-card',
+
+    properties: {
+      comic: {
+        type: Object
+      }
+    },
+
+    comicURL: function(comic) {
+      return "#/comic/"+comic.slug+"/"+(comic.idx+1);
+    },
+  });
+</script>

@@ -1,0 +1,36 @@
+<html manifest="static/cache.manifest">
+  <head>
+    <title>Comic Starship by Tristan Rice</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="import" href="lib/app-router/app-router.html">
+    <link rel="import" href="lib/font-roboto/roboto.html">
+    <link rel="import" href="lib/polymer/polymer.html">
+    <link rel="import" href="pages/comic-page.html">
+    <link rel="import" href="pages/index-page.html">
+    <link rel="import" href="pages/login-page.html">
+    <script src="lib/jquery/dist/jquery.min.js"></script>
+    <script src="lib/localforage/dist/localforage.min.js"></script>
+    <script src="lib/webcomponentsjs/webcomponents-lite.min.js"></script>
+  </head>
+  <body fullbleed vertical layout>
+      <style>
+        body {
+          padding: 0;
+          margin: 0;
+          font-family: Roboto, 'Open Sans', sans-serif;
+        }
+        #comics img {
+          max-width: 100%;
+          margin: 0 auto;
+          display: block;
+        }
+      </style>
+      <app-router>
+        <app-route path="/" element="index-page"></app-route>
+        <app-route path="/login" element="login-page"></app-route>
+        <app-route path="/comic/:slug/:page" element="comic-page"></app-route>
+      </app-router>
+  </body>
+</html>
