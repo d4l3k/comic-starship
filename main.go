@@ -24,6 +24,9 @@ import (
 	"github.com/vincent-petithory/dataurl"
 )
 
+//go:generate npm install
+//go:generate bower install
+
 func getCSRFToken() (string, []*http.Cookie, error) {
 	resp, err := http.Get("https://www.comic-rocket.com/login?next=/")
 	if err != nil {

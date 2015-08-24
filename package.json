@@ -1,0 +1,23 @@
+{
+  "name": "comic-starship",
+  "version": "1.0.0",
+  "description": "A better comic viewer for Comic Rocket.",
+  "main": "main.go",
+  "dependencies": {
+    "vulcanize": "^1.10.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "go test ./..."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d4l3k/comic-starship.git"
+  },
+  "author": "rice@fn.lc",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/d4l3k/comic-starship/issues"
+  },
+  "homepage": "https://github.com/d4l3k/comic-starship#readme"
+}
