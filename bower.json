@@ -23,6 +23,7 @@
     "jquery": "~2.1.4",
     "iron-ajax": "PolymerElements/iron-ajax#~1.0.3",
     "iron-a11y-keys": "PolymerElements/iron-a11y-keys#~1.0.2",
-    "localforage": "~1.2.7"
+    "localforage": "~1.2.7",
+    "hammer.js": "~2.0.4"
   }
 }

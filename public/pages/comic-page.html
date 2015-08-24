@@ -35,7 +35,8 @@
       text-align: center;
     }
     #nav > span {
-      line-height: 41px;
+      position: relative;
+      top: 1px;
     }
     .cached {
       display: none;
@@ -46,12 +47,15 @@
     .info:active .max {
       display: none;
     }
+    paper-icon-button::shadow #ink {
+      color: white !important;
+    }
   </style>
   <template>
     <div id="comics">
     </div>
     <paper-material id="nav" elevation="1">
-      <paper-button class="left" on-tap="prev">Previous</paper-button>
+      <paper-icon-button class="left" icon="arrow-back" on-tap="prev"></paper-icon-button>
       <span class="info" on-down="updateCachedCount">
         <span>{{page}}</span>
         <span class="cached">
@@ -61,8 +65,9 @@
           / <span>{{comic.max_idx}}</span>
         </span>
       </span>
-      <paper-icon-button icon="settings" style="color: white;" on-tap="openOptions"></paper-icon-button>
-      <paper-button class="right" on-tap="next">Next</paper-button>
+      <paper-icon-button icon="settings" on-tap="openOptions"></paper-icon-button>
+      <paper-icon-button icon="fullscreen" on-tap="fullscreen"></paper-icon-button>
+      <paper-icon-button class="right" icon="arrow-forward" on-tap="next"></paper-icon-button>
     </paper-material>
     <paper-dialog id="options" with-backdrop>
       <h2>Comic Options</h2>
@@ -91,6 +96,16 @@
         window.location.hash = "/login";
         return;
       }
+      var hammertime = new Hammer(this);
+      var self = this;
+      hammertime.on('swiperight', function(ev) {
+        console.log(ev);
+        self.prev();
+      });
+      hammertime.on('swipeleft', function(ev) {
+        console.log(ev);
+        self.next();
+      });
     },
 
     properties: {
@@ -239,7 +254,10 @@
     },
 
     openOptions: function() {
-      this.$$('paper-dialog').open();
+      var self = this;
+      setTimeout(function() {
+        self.$$('paper-dialog').open();
+      }, 100);
     },
 
     clearOld: function() {
@@ -276,6 +294,38 @@
           });
         }
       });
+    },
+
+    fullscreen: function() {
+      var isFullscreen = document.fullScreen || document.mozFullScreen || document.webkitIsFullScreen;
+      if (isFullscreen) {
+        this.cancelFullScreen();
+      } else {
+        this.requestFullScreen();
+      }
+    },
+
+    requestFullScreen: function() {
+      var elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      } else if (elem.mozRequestFullScreen) {
+        elem.mozRequestFullScreen();
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      }
+    },
+
+    cancelFullScreen: function() {
+      if (document.cancelFullScreen) {
+        document.cancelFullScreen();
+      } else if (document.webkitCancelFullScreen) {
+        document.webkitCancelFullScreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      }
     }
   });
 </script>
