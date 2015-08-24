@@ -24,7 +24,7 @@ import (
 )
 
 //go:generate npm install
-//go:generate bower install
+//go:generate bower install --allow-root
 
 var debug = flag.Bool("debug", false, "whether to revulcanize on every request")
 
