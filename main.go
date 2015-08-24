@@ -238,13 +238,12 @@ func inlineImages(body []byte) ([]byte, error) {
 
 var db *bolt.DB
 
-func main() {
+func initDB() (func() error, error) {
 	var err error
 	db, err = bolt.Open("comics.db", 0600, nil)
 	if err != nil {
-		log.Fatal(err)
+		return db.Close, err
 	}
-	defer db.Close()
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		_, err = tx.CreateBucketIfNotExists([]byte("comics"))
@@ -254,8 +253,17 @@ func main() {
 		return nil
 	})
 	if err != nil {
+		return db.Close, err
+	}
+	return db.Close, nil
+}
+
+func main() {
+	done, err := initDB()
+	if err != nil {
 		log.Fatal(err)
 	}
+	defer done()
 
 	ro := mux.NewRouter()
 	ro.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
