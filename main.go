@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
-	"html"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -26,6 +25,8 @@ import (
 
 //go:generate npm install
 //go:generate bower install
+
+var debug = flag.Bool("debug", false, "whether to revulcanize on every request")
 
 func getCSRFToken() (string, []*http.Cookie, error) {
 	resp, err := http.Get("https://www.comic-rocket.com/login?next=/")
@@ -262,6 +263,8 @@ func initDB() (func() error, error) {
 }
 
 func main() {
+	flag.Parse()
+
 	done, err := initDB()
 	if err != nil {
 		log.Fatal(err)
@@ -269,9 +272,6 @@ func main() {
 	defer done()
 
 	ro := mux.NewRouter()
-	ro.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
-	})
 	//http.DefaultClient.Jar, _ = cookiejar.New(nil)
 	ro.Path("/api/comics").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -385,15 +385,23 @@ func main() {
 	ro.PathPrefix("/lib/").Handler(http.FileServer(http.Dir("./public")))
 	ro.PathPrefix("/static/").Handler(http.FileServer(http.Dir("./public")))
 	ro.PathPrefix("/pages/").Handler(http.FileServer(http.Dir("./public")))
-	ro.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cmd := exec.Command("node_modules/vulcanize/bin/vulcanize", "--inline-scripts", "--inline-css", "public/app.html")
-		stdout, err := cmd.Output()
+	if *debug {
+		ro.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			index, err := vulcanize()
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+			}
+			w.Write(index)
+		})
+	} else {
+		index, err := vulcanize()
 		if err != nil {
-			log.Println("Vulcanize error", err)
-			return
+			log.Fatal(err)
 		}
-		w.Write([]byte(stdout))
-	})
+		ro.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(index)
+		})
+	}
 	http.Handle("/", ro)
 	log.Println("Listening :8282")
 	log.Fatal(http.ListenAndServe(":8282", nil))
