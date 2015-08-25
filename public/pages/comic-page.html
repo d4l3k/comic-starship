@@ -159,9 +159,10 @@
 
     updateCachedCount: function() {
       var self = this;
-      self.countCached().then(function(cached) {
+      return self.countCached().then(function(cached) {
         console.log("cached", cached);
         self.cachedCount = cached;
+        return cached;
       });
     },
 
@@ -171,7 +172,6 @@
 
     computeImageURL: function(slug, page, offset) {
       var url = "api/comic?slug="+slug+"&p="+(parseInt(page) + offset);
-      console.log('image url', url);
       return url;
     },
 
@@ -189,7 +189,6 @@
       var urls = req.xhr.response;
       var key = 'comic-page:'+relURL;
       window.localforage.setItem(key, urls);
-      console.log('resp', this.imageURL, relURL);
       if (relURL.endsWith(this.imageURL)) {
         if (!urls) {
           this.nav(-1);
@@ -257,8 +256,11 @@
     },
 
     precache: function() {
-      this.toCacheCount -= this.cachedCount;
-      this.cacheComicPage(this.comic.idx + this.cachedCount);
+      var self = this;
+      this.updateCachedCount().then(function(cached) {
+        self.toCacheCount -= self.cachedCount;
+        self.cacheComicPage(self.comic.idx + self.cachedCount);
+      });
     },
 
     cacheComicPage: function(page) {
