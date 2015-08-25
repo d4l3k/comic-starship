@@ -146,7 +146,7 @@
         comic.idx = parseInt(page, 10);
         window.localforage.setItem(key, comic);
         self.comic = comic;
-        $.post('/api/markcomic', self.comic);
+        $.post('api/markcomic', self.comic);
       });
     },
 
@@ -174,7 +174,7 @@
     },
 
     computeImageURL: function(slug, page, offset) {
-      return "/api/comic?slug="+slug+"&p="+(parseInt(page) + offset);
+      return "api/comic?slug="+slug+"&p="+(parseInt(page) + offset);
     },
 
     next: function() {

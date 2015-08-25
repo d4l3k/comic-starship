@@ -27,7 +27,7 @@
       'login.tap': 'login',
     },
     login: function() {
-      $.post('/api/login', {
+      $.post('api/login', {
         username: this.$.username.value,
         password: this.$.password.value,
       }, function(data, status) {
