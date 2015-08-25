@@ -10,7 +10,8 @@ func vulcanize() ([]byte, error) {
 	cmd := exec.Command("node_modules/vulcanize/bin/vulcanize", "--inline-scripts", "--inline-css", "public/app.html")
 	stdout, err := cmd.Output()
 	if err != nil {
+		log.Println("STDOUT ", string(stdout))
 		return nil, err
 	}
-	return []byte(stdout), nil
+	return stdout, nil
 }
