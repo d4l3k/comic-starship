@@ -29,9 +29,9 @@
         }
       </style>
       <app-router>
-        <app-route path="/" element="index-page"></app-route>
         <app-route path="/login" element="login-page"></app-route>
         <app-route path="/comic/:slug/:page" element="comic-page"></app-route>
+        <app-route path="*" element="index-page"></app-route>
       </app-router>
   </body>
 </html>

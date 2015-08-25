@@ -109,10 +109,6 @@
     },
 
     properties: {
-      fetchs: {
-        type: Array,
-        value: [-1, 0, 1, 2, 3],
-      },
       page: {
         type: Number,
         observer: 'savePage',
@@ -174,7 +170,9 @@
     },
 
     computeImageURL: function(slug, page, offset) {
-      return "api/comic?slug="+slug+"&p="+(parseInt(page) + offset);
+      var url = "api/comic?slug="+slug+"&p="+(parseInt(page) + offset);
+      console.log('image url', url);
+      return url;
     },
 
     next: function() {
@@ -191,23 +189,14 @@
       var urls = req.xhr.response;
       var key = 'comic-page:'+relURL;
       window.localforage.setItem(key, urls);
-      if (this.imageURL == relURL) {
+      console.log('resp', this.imageURL, relURL);
+      if (relURL.endsWith(this.imageURL)) {
         if (!urls) {
           this.nav(-1);
         } else {
           this.$.comics.innerHTML = urls;
           this.cleanHTML();
         }
-      } else if (urls){
-        this.preload(urls);
-      }
-    },
-
-    preload: function(sources) {
-      var images = [];
-      for (i = 0, length = sources.length; i < length; ++i) {
-        images[i] = new Image();
-        images[i].src = sources[i];
       }
     },
 

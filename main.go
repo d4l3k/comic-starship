@@ -403,6 +403,6 @@ func main() {
 		})
 	}
 	http.Handle("/", ro)
-	log.Println("Listening :8282")
-	log.Fatal(http.ListenAndServe(":8282", nil))
+	log.Println("Listening 0.0.0.0:8282")
+	log.Fatal(http.ListenAndServe("0.0.0.0:8282", nil))
 }
