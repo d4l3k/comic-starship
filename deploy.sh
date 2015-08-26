@@ -1,0 +1,1 @@
+docker pull d4l3k/comic-starship:latest && docker stop comic-starship && docker rm comic-starship && docker run -p 0.0.0.0:8282:8282 --restart=always --name comic-starship -d d4l3k/comic-starship:latest
