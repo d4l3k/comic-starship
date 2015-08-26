@@ -11,6 +11,7 @@
     :host {
       display: block;
       background-color: black;
+      min-height: 100%;
     }
     paper-material {
       padding: 10px;
@@ -94,10 +95,9 @@
 
     ready: function() {
       this.window = window;
-      if (!window.localStorage.loggedIn) {
-        window.location.hash = "/login";
-        return;
-      }
+
+      this.loggedIn = !!window.localStorage.loggedIn;
+
       var hammertime = new Hammer(this);
       var self = this;
       hammertime.on('swiperight', function(ev) {
@@ -146,7 +146,9 @@
         window.localforage.setItem(key, comic);
         self.comic = comic;
         self.cacheComicPage(idx+1, true);
-        $.post('api/markcomic', self.comic);
+        if (self.loggedIn) {
+          $.post('api/markcomic', self.comic);
+        }
       });
     },
 
