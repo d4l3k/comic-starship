@@ -10,6 +10,7 @@
   <style>
     :host {
       display: block;
+      background-color: black;
     }
     paper-material {
       padding: 10px;
@@ -17,7 +18,8 @@
     #comics {
       max-width: 900px;
       margin: 0 auto;
-      padding-bottom: 61px;
+      padding-bottom: 60px;
+      background-color: white;
     }
     .right {
       float: right;
@@ -139,9 +141,11 @@
       var key = 'comic:'+this.slug;
       var self = this;
       window.localforage.getItem(key).then(function(comic) {
-        comic.idx = parseInt(page, 10);
+        var idx = parseInt(page, 10);
+        comic.idx = idx;
         window.localforage.setItem(key, comic);
         self.comic = comic;
+        self.cacheComicPage(idx+1, true);
         $.post('api/markcomic', self.comic);
       });
     },
@@ -212,13 +216,15 @@
     },
 
     navHandler: function(e) {
-      switch (e.detail.keyboardEvent.code) {
-      case "ArrowRight":
-        this.nav(1)
+      switch (e.detail.keyboardEvent.keyIdentifier) {
+      case "Right":
+        this.nav(1);
         break;
-      case "ArrowLeft":
-        this.nav(-1)
+      case "Left":
+        this.nav(-1);
         break;
+      default:
+        console.log('keyboard event', e.detail.keyboardEvent.keyIdentifier);
       }
     },
 
@@ -263,9 +269,9 @@
       });
     },
 
-    cacheComicPage: function(page) {
+    cacheComicPage: function(page, once) {
       var count = parseInt(this.toCacheCount, 10);
-      if (count <= 0) {
+      if (count <= 0 && !once) {
         this.toCacheCount = 0;
         return;
       }
@@ -277,11 +283,15 @@
         self.toCacheCount = count - 1;
         self.cachedCount += 1;
         if (cachedPage) {
-          self.cacheComicPage(page + 1);
+          if (!once) {
+            self.cacheComicPage(page + 1);
+          }
         } else {
           $.get(url, function(resp) {
             window.localforage.setItem(key, resp);
-            self.cacheComicPage(page + 1);
+            if (!once) {
+              self.cacheComicPage(page + 1);
+            }
           });
         }
       });

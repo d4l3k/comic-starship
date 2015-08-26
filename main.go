@@ -222,10 +222,15 @@ func inlineImages(body []byte) ([]byte, error) {
 		wg.Add(1)
 		go func() {
 			link := strings.TrimSpace(sel.AttrOr("src", ""))
-			typ := mime.TypeByExtension(filepath.Ext(link))
 			img, err := httpGetOrCache(link)
 			if err != nil {
 				err2 = err
+			}
+			typ := http.DetectContentType(img)
+			if typ == "application/octet-stream" {
+				if typ2 := mime.TypeByExtension(filepath.Ext(link)); len(typ2) > 0 {
+					typ = typ2
+				}
 			}
 			dataURL := dataurl.New(img, typ)
 			sel.SetAttr("src", dataURL.String())
