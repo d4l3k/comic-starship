@@ -9,10 +9,12 @@
       color: inherit;
     }
     paper-material {
-      padding: 10px;
-      margin: 30px 0;
+      margin: 20px 0;
       min-height: 41px;
       background-color: white;
+    }
+    paper-material:hover {
+      transform: scale(1.01);
     }
     paper-material > img {
       display: block;
@@ -23,6 +25,7 @@
     }
     paper-material > h3, paper-material > span  {
       line-height: 41px;
+      padding: 5px 15px;
     }
     .right {
       float: right;
@@ -30,16 +33,17 @@
     h3 {
       display: inline-block;
       font-weight: 400;
+      margin: 0;
     }
   </style>
   <template>
     <a href="{{comicURL(comic)}}">
       <paper-material elevation="1">
         <img src="{{comic.banner_url}}">
-        <h3>{{comic.name}}</h3>
         <span class="right">
           <span>{{comic.idx}}</span>/<span>{{comic.max_idx}}</span>
         </span>
+        <h3>{{comic.name}}</h3>
       </paper-material>
     </a>
   </template>
