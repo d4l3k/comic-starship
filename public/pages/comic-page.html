@@ -1,25 +1,31 @@
 <link rel="import" href="../lib/iron-a11y-keys-behavior/iron-a11y-keys-behavior.html">
 <link rel="import" href="../lib/iron-ajax/iron-ajax.html">
 <link rel="import" href="../lib/iron-icons/iron-icons.html">
-<link rel="import" href="../lib/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../lib/paper-dialog/paper-dialog.html">
+<link rel="import" href="../lib/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../lib/paper-input/paper-input.html">
 <link rel="import" href="../lib/paper-material/paper-material.html">
+<link rel="import" href="../lib/paper-spinner/paper-spinner.html">
 <link rel="import" href="../lib/polymer/polymer.html">
 <dom-module id="comic-page">
   <style>
     :host {
       display: block;
       background-color: black;
-      min-height: 100%;
+      height: calc(100% - 60px);
+      overflow-y: auto;
     }
     paper-material {
       padding: 10px;
     }
+    paper-spinner {
+      display: block;
+      margin: 0 auto;
+      top: calc(50% - 14px);
+    }
     #comics {
       max-width: 900px;
       margin: 0 auto;
-      padding-bottom: 60px;
       background-color: white;
     }
     .right {
@@ -57,6 +63,7 @@
   <template>
     <div id="comics">
     </div>
+    <paper-spinner active="[[!urls]]"></paper-spinner>
     <paper-material id="nav" elevation="1">
       <paper-icon-button class="left" icon="arrow-back" on-tap="prev"></paper-icon-button>
       <span class="info" on-down="updateCachedCount">
@@ -95,6 +102,7 @@
 
     ready: function() {
       this.window = window;
+      this.urls = false;
 
       this.loggedIn = !!window.localStorage.loggedIn;
 
@@ -160,6 +168,7 @@
         if (urls) {
           document.body.scrollTop = 0
           self.$.comics.innerHTML = urls;
+          self.urls = urls;
           self.cleanHTML();
         }
       });
@@ -202,6 +211,7 @@
           this.nav(-1);
         } else {
           this.$.comics.innerHTML = urls;
+          self.urls = urls;
           this.cleanHTML();
         }
       }
@@ -235,7 +245,7 @@
     nav: function(dir) {
       var newPage = parseInt(this.page) + dir;
       if (newPage >= 1 && newPage <= this.comic.max_idx) {
-        window.location.hash = "#/comic/"+this.slug+"/"+();
+        window.location.hash = "#/comic/"+this.slug+"/"+newPage;
       }
     },
 
