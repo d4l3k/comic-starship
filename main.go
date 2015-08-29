@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/boltdb/bolt"
@@ -63,7 +64,16 @@ func httpGetOrCache(link string) ([]byte, error) {
 	err := db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("comics"))
 		body = bucket.Get([]byte(link))
-		if len(body) == 0 {
+
+		bucketUpdated := tx.Bucket([]byte("comics-updated"))
+		updated := bucket.Get([]byte(link))
+
+		updateTime := time.Now()
+		if err := updateTime.UnmarshalText(updated); err != nil {
+			updated = nil
+		}
+
+		if len(body) == 0 || len(updated) == 0 || (time.Now().Sub(updateTime) > 24*time.Hour) {
 			log.Println("Fetching", link)
 			resp, err := http.Get(link)
 			if err != nil {
@@ -74,6 +84,11 @@ func httpGetOrCache(link string) ([]byte, error) {
 				return err
 			}
 			bucket.Put([]byte(link), body)
+			t, err := time.Now().MarshalText()
+			if err != nil {
+				return err
+			}
+			bucketUpdated.Put([]byte(link), t)
 		} else {
 			log.Println("Cached", link)
 		}
@@ -255,9 +270,11 @@ func initDB() (func() error, error) {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err = tx.CreateBucketIfNotExists([]byte("comics"))
-		if err != nil {
-			return err
+		for _, bucket := range []string{"comics", "comics-updated"} {
+			_, err = tx.CreateBucketIfNotExists([]byte(bucket))
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})
