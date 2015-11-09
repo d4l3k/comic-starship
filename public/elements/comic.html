@@ -39,7 +39,9 @@
   <template>
     <a href="{{comicURL(comic)}}">
       <paper-material elevation="1">
-        <img src="{{comic.banner_url}}">
+        <template is="dom-if" if="{{comic.banner_url}}">
+          <img src="{{comic.banner_url}}">
+        </template>
         <span class="right">
           <span>{{comic.idx}}</span>/<span>{{comic.max_idx}}</span>
         </span>
