@@ -49,7 +49,10 @@
         <span class="paper-font-subhead">By <a href="https://fn.lc">Tristan Rice</a></span>
       </paper-toolbar>
       <div class="comics-content">
-        <h2>To Read</h2>
+        <h2>
+          To Read
+          (<span>[[comicsToRead.length]]</span>/<span>[[comics.length]]</span>)
+        </h2>
         <template is="dom-repeat" items="{{comicsToRead}}">
           <comic-card comic="{{item}}"></comic-card>
         </template>
@@ -69,6 +72,7 @@
       url="api/comics"
       handle-as="json"
       on-response="handleResponse"
+      on-error="logout"
       debounce-duration="300"></iron-ajax>
   </template>
 </dom-module>
@@ -79,7 +83,7 @@
     ready: function() {
       var self = this;
       if (!window.localStorage.loggedIn) {
-        window.location.hash = "/login";
+        this.logout();
         return;
       }
     },
@@ -92,11 +96,11 @@
     handleResponse: function(resp,req) {
       var self = this;
       var comics =  req.xhr.response;
+      this.comics = comics;
       this.comicsToRead = [];
       this.comicsFinished = [];
       if (!comics) {
-        window.location.hash = "/login";
-        //window.localStorage.loggedIn = "";
+        this.logout();
       } else {
         comics.forEach(function(comic, i) {
           var key = 'comic:'+comic.slug;

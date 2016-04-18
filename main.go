@@ -29,6 +29,10 @@ import (
 
 var debug = flag.Bool("debug", false, "whether to revulcanize on every request")
 
+const (
+	COMIC_ROCKET_COMICS_URL = "https://www.comic-rocket.com/api/1/marked/"
+)
+
 func getCSRFToken() (string, []*http.Cookie, error) {
 	resp, err := http.Get("https://www.comic-rocket.com/login?next=/")
 	if err != nil {
@@ -284,6 +288,120 @@ func initDB() (func() error, error) {
 	return db.Close, nil
 }
 
+type server struct{}
+
+func (s *server) getComics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	req, err := http.NewRequest("GET", COMIC_ROCKET_COMICS_URL, nil)
+	if err != nil {
+		http.Error(w, err.Error(), 503)
+		return
+	}
+	req.Header = r.Header
+	client := http.Client{}
+	client.Jar, _ = cookiejar.New(nil)
+	u, _ := url.Parse(COMIC_ROCKET_COMICS_URL)
+	client.Jar.SetCookies(u, r.Cookies())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), 503)
+		return
+	}
+	io.Copy(w, resp.Body)
+}
+func (s *server) markComic(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	r.ParseForm()
+	for _, urlTmpl := range []string{"http://www.comic-rocket.com/read/%s/%s?mark", "https://www.comic-rocket.com/navbar/%s/%s/?mark"} {
+		markURL := fmt.Sprintf(urlTmpl, r.FormValue("slug"), r.FormValue("idx"))
+		log.Printf("MarkComic URL %s", markURL)
+		req, err := http.NewRequest("GET", markURL, nil)
+		if err != nil {
+			http.Error(w, err.Error(), 503)
+			return
+		}
+		req.Header = r.Header
+		client := http.Client{}
+		client.Jar, _ = cookiejar.New(nil)
+		u, _ := url.Parse(markURL)
+		client.Jar.SetCookies(u, r.Cookies())
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			http.Error(w, err.Error(), 503)
+			return
+		}
+		io.Copy(w, resp.Body)
+	}
+}
+
+func (s *server) getComicPage(w http.ResponseWriter, r *http.Request) {
+	slug := r.URL.Query().Get("slug")
+	page, err := strconv.Atoi(r.URL.Query().Get("p"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+	}
+	imgs, err := getComicImages(slug, page)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+	}
+	dataImgs, err := inlineImages(imgs)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(dataImgs)
+}
+
+func (s *server) login(w http.ResponseWriter, r *http.Request) {
+	http.DefaultClient.Jar, _ = cookiejar.New(nil)
+	r.ParseForm()
+	v := r.Form
+	v.Add("next", "/")
+	token, cookies, err := getCSRFToken()
+	if err != nil {
+		http.Error(w, err.Error(), 503)
+		return
+	}
+	v.Add("csrfmiddlewaretoken", token)
+	log.Print("token", token, v)
+
+	req, err := http.NewRequest("POST", "https://www.comic-rocket.com/login", strings.NewReader(v.Encode()))
+	if err != nil {
+		http.Error(w, err.Error(), 503)
+		return
+	}
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+	req.Header.Add("Referer", "https://www.comic-rocket.com/login?next=/")
+	req.Header.Add("Origin", "https://www.comic-rocket.com")
+	req.Header.Add("Host", "www.comic-rocket.com")
+	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), 503)
+		return
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), 503)
+		return
+	}
+	for _, cookie := range cookies {
+		if cookie.Name != "sessionid" {
+			w.Header().Add("Set-Cookie", cookie.String())
+		}
+	}
+	u, _ := url.Parse(COMIC_ROCKET_COMICS_URL)
+	cookis := http.DefaultClient.Jar.Cookies(u)
+	log.Println("jar", cookis)
+	for _, cookie := range cookis {
+		w.Header().Add("Set-Cookie", cookie.String())
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(strings.Contains(string(body), "My Comics"))
+}
+
 func main() {
 	flag.Parse()
 
@@ -293,120 +411,19 @@ func main() {
 	}
 	defer done()
 
-	ro := mux.NewRouter()
-	//http.DefaultClient.Jar, _ = cookiejar.New(nil)
-	ro.Path("/api/comics").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		req, err := http.NewRequest("GET", "https://www.comic-rocket.com/api/1/marked/", nil)
-		if err != nil {
-			http.Error(w, err.Error(), 503)
-			return
-		}
-		req.Header = r.Header
-		client := http.Client{}
-		client.Jar, _ = cookiejar.New(nil)
-		u, _ := url.Parse("https://www.comic-rocket.com/api/1/marked/")
-		client.Jar.SetCookies(u, r.Cookies())
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			http.Error(w, err.Error(), 503)
-			return
-		}
-		io.Copy(w, resp.Body)
-	})
-	ro.Path("/api/markcomic").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		r.ParseForm()
-		for _, urlTmpl := range []string{"http://www.comic-rocket.com/read/%s/%s?mark", "https://www.comic-rocket.com/navbar/%s/%s/?mark"} {
-			markURL := fmt.Sprintf(urlTmpl, r.FormValue("slug"), r.FormValue("idx"))
-			log.Printf("MarkComic URL %s", markURL)
-			req, err := http.NewRequest("GET", markURL, nil)
-			if err != nil {
-				http.Error(w, err.Error(), 503)
-				return
-			}
-			req.Header = r.Header
-			client := http.Client{}
-			client.Jar, _ = cookiejar.New(nil)
-			u, _ := url.Parse(markURL)
-			client.Jar.SetCookies(u, r.Cookies())
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				http.Error(w, err.Error(), 503)
-				return
-			}
-			io.Copy(w, resp.Body)
-		}
-	})
-	ro.Path("/api/comic").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slug := r.URL.Query().Get("slug")
-		page, err := strconv.Atoi(r.URL.Query().Get("p"))
-		if err != nil {
-			http.Error(w, err.Error(), 400)
-		}
-		imgs, err := getComicImages(slug, page)
-		if err != nil {
-			http.Error(w, err.Error(), 400)
-		}
-		dataImgs, err := inlineImages(imgs)
-		if err != nil {
-			http.Error(w, err.Error(), 400)
-		}
-		w.Header().Set("Content-Type", "text/html")
-		w.Write(dataImgs)
-	})
-	ro.Path("/api/login").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.DefaultClient.Jar, _ = cookiejar.New(nil)
-		r.ParseForm()
-		v := r.Form
-		v.Add("next", "/")
-		token, cookies, err := getCSRFToken()
-		if err != nil {
-			http.Error(w, err.Error(), 503)
-			return
-		}
-		v.Add("csrfmiddlewaretoken", token)
-		log.Print("token", token, v)
+	s := &server{}
 
-		req, err := http.NewRequest("POST", "https://www.comic-rocket.com/login", strings.NewReader(v.Encode()))
-		if err != nil {
-			http.Error(w, err.Error(), 503)
-			return
-		}
-		for _, cookie := range cookies {
-			req.AddCookie(cookie)
-		}
-		req.Header.Add("Referer", "https://www.comic-rocket.com/login?next=/")
-		req.Header.Add("Origin", "https://www.comic-rocket.com")
-		req.Header.Add("Host", "www.comic-rocket.com")
-		req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			http.Error(w, err.Error(), 503)
-			return
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			http.Error(w, err.Error(), 503)
-			return
-		}
-		for _, cookie := range cookies {
-			if cookie.Name != "sessionid" {
-				w.Header().Add("Set-Cookie", cookie.String())
-			}
-		}
-		u, _ := url.Parse("https://www.comic-rocket.com/api/1/marked/")
-		cookis := http.DefaultClient.Jar.Cookies(u)
-		log.Println("jar", cookis)
-		for _, cookie := range cookis {
-			w.Header().Add("Set-Cookie", cookie.String())
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(strings.Contains(string(body), "My Comics"))
-	})
+	ro := mux.NewRouter()
+	api := ro.Path("/api/")
+	api.Path("/comics").Methods("GET").HandlerFunc(s.getComics)
+	api.Path("/markcomic").Methods("POST").HandlerFunc(s.markComic)
+	api.Path("/comic").HandlerFunc(s.getComicPage)
+	api.Path("/login").Methods("POST").HandlerFunc(s.login)
+
 	ro.PathPrefix("/lib/").Handler(http.FileServer(http.Dir("./public")))
 	ro.PathPrefix("/static/").Handler(http.FileServer(http.Dir("./public")))
 	ro.PathPrefix("/pages/").Handler(http.FileServer(http.Dir("./public")))
+
 	if *debug {
 		ro.Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			index, err := vulcanize()
@@ -424,6 +441,7 @@ func main() {
 			w.Write(index)
 		})
 	}
+
 	http.Handle("/", ro)
 	log.Println("Listening 0.0.0.0:8282")
 	log.Fatal(http.ListenAndServe("0.0.0.0:8282", nil))

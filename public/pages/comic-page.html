@@ -22,10 +22,10 @@
     paper-material {
       padding: 10px;
     }
-    paper-spinner {
+    .center {
       display: block;
       margin: 0 auto;
-      top: calc(50vh - 14px);
+      top: calc(50vh - 44px);
 
       --paper-spinner-layer-1-color: #FF0080;
       --paper-spinner-layer-2-color: #FF0080;
@@ -73,8 +73,13 @@
   <template>
     <div id="comics">
     </div>
-    <template is="dom-if" if="[[!urls]]">
-      <paper-spinner active></paper-spinner>
+    <template is="dom-if" if="[[showSpinner(urls, error)]]">
+      <paper-spinner class="center" active></paper-spinner>
+    </template>
+    <template is="dom-if" if="[[error]]">
+      <h1>Error</h1>
+      <p>{{error.error.message}}</p>
+      <p>{{error.request.xhr.responseText}}</p>
     </template>
     <paper-material id="nav" elevation="1">
       <paper-icon-button class="left" icon="arrow-back" on-tap="prev"></paper-icon-button>
@@ -104,6 +109,7 @@
       url="{{computeImageURL(slug, page, 0)}}"
       handle-as="text"
       on-response="handleResponse"
+      last-error="{{error}}"
       debounce-duration="300"></iron-ajax>
   </template>
 
@@ -359,6 +365,9 @@
       } else if (document.mozCancelFullScreen) {
         document.mozCancelFullScreen();
       }
+    },
+    showSpinner: function(urls, error) {
+      return !urls && !error;
     }
   });
 </script>
