@@ -25,7 +25,7 @@
     paper-spinner {
       display: block;
       margin: 0 auto;
-      top: calc(50% - 14px);
+      top: calc(50vh - 14px);
 
       --paper-spinner-layer-1-color: #FF0080;
       --paper-spinner-layer-2-color: #FF0080;
@@ -119,7 +119,9 @@
 
       this.loggedIn = !!window.localStorage.loggedIn;
 
-      var hammertime = new Hammer(this);
+      var hammertime = new Hammer(this, {
+        touchAction: 'auto',
+      });
       var self = this;
       hammertime.on('swiperight', function(ev) {
         console.log(ev);
