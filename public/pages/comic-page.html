@@ -16,6 +16,9 @@
       overflow-y: auto;
       text-align: center;
     }
+    a {
+      color: inherit;
+    }
     paper-material {
       padding: 10px;
     }
@@ -79,6 +82,7 @@
           / <span>{{comic.max_idx}}</span>
         </span>
       </span>
+      <a href="#/"><paper-icon-button icon="home"></paper-icon-button></a>
       <paper-icon-button icon="settings" on-tap="openOptions"></paper-icon-button>
       <paper-icon-button icon="fullscreen" on-tap="fullscreen"></paper-icon-button>
       <paper-icon-button class="right" icon="arrow-forward" on-tap="next"></paper-icon-button>
