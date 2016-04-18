@@ -288,27 +288,10 @@ func initDB() (func() error, error) {
 	return db.Close, nil
 }
 
-type server struct{}
-
-func (s *server) getComics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	req, err := http.NewRequest("GET", COMIC_ROCKET_COMICS_URL, nil)
-	if err != nil {
-		http.Error(w, err.Error(), 503)
-		return
-	}
-	req.Header = r.Header
-	client := http.Client{}
-	client.Jar, _ = cookiejar.New(nil)
-	u, _ := url.Parse(COMIC_ROCKET_COMICS_URL)
-	client.Jar.SetCookies(u, r.Cookies())
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), 503)
-		return
-	}
-	io.Copy(w, resp.Body)
+type server struct {
+	comicDB map[string]*Comic
 }
+
 func (s *server) markComic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
@@ -412,6 +395,9 @@ func main() {
 	defer done()
 
 	s := &server{}
+	if err := s.loadComicDetails(); err != nil {
+		log.Fatal(err)
+	}
 
 	ro := mux.NewRouter()
 	api := ro.Path("/api/")
