@@ -14,7 +14,7 @@
     "test",
     "tests"
   ],
-  "directory" : "public/lib",
+  "directory": "public/lib",
   "dependencies": {
     "polymer": "Polymer/polymer#^1.0.0",
     "paper-elements": "PolymerElements/paper-elements#~1.0.1",
@@ -25,6 +25,7 @@
     "iron-ajax": "PolymerElements/iron-ajax#~1.0.3",
     "iron-a11y-keys": "PolymerElements/iron-a11y-keys#~1.0.2",
     "localforage": "~1.2.7",
-    "hammer.js": "~2.0.4"
+    "hammer.js": "~2.0.4",
+    "paper-card": "PolymerElements/paper-card#^1.1.1"
   }
 }

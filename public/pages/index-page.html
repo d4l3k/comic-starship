@@ -8,11 +8,17 @@
 <dom-module id="index-page">
   <style>
     :root {
-      --default-primary-color: rgba(64,64,64,0.9);
+      --primary-text-color: white;
+      --primary-color: #FF0080;
+      --secondary-text-color: #777;
+      --paper-card-background-color: #222;
+      --paper-card-header-color: white;
     }
     :host {
       display: block;
-      background-color: #333;
+      --paper-toolbar-title: {
+        margin-left: 0 !important;
+      };
     }
     paper-scroll-header-panel {
       height: 100%;
@@ -27,6 +33,7 @@
     }
     paper-toolbar {
       overflow: hidden;
+      background-color: #222;
     }
     h2 {
       font-weight: 200;
@@ -38,7 +45,8 @@
       <paper-toolbar>
         <span class="title">
           Comic Starship
-        </span> <span class="paper-font-subhead">By <a href="https://fn.lc">Tristan Rice</a></span>
+        </span>
+        <span class="paper-font-subhead">By <a href="https://fn.lc">Tristan Rice</a></span>
       </paper-toolbar>
       <div class="comics-content">
         <h2>To Read</h2>
@@ -49,6 +57,10 @@
         <template is="dom-repeat" items="{{comicsFinished}}">
           <comic-card comic="{{item}}"></comic-card>
         </template>
+
+        <center>
+        <paper-button on-tap="logout">Log Out</paper-button>
+        </center>
       </div>
     </paper-scroll-header-panel>
 
@@ -70,6 +82,11 @@
         window.location.hash = "/login";
         return;
       }
+    },
+
+    logout: function() {
+      delete window.localStorage.loggedIn;
+      window.location.hash = '/login';
     },
 
     handleResponse: function(resp,req) {

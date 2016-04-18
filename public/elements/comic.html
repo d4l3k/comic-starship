@@ -1,34 +1,35 @@
 <link rel="import" href="../lib/polymer/polymer.html">
-<link rel="import" href="../lib/paper-material/paper-material.html">
+<link rel="import" href="../lib/paper-card/paper-card.html">
 <dom-module id="comic-card">
   <style>
     :host {
+      --text-background: rgba(34,34,34, 0.8);
     }
     a {
       text-decoration: none;
       color: inherit;
     }
-    paper-material {
+    paper-card {
+      display: block;
       margin: 20px 0;
-      min-height: 41px;
-      background-color: white;
+      --paper-card-background-color: #222;
+      --paper-card-header-color: white;
+      --paper-card-header-text: {
+        background-color: var(--text-background);
+        padding: 0;
+        margin: 16px;
+        font-weight: 200;
+      };
+      transition: transform 0.1s;
     }
-    paper-material:hover {
+    paper-card:hover {
       transform: scale(1.01);
     }
-    paper-material > img {
-      display: block;
-      max-width: 100%;
-    }
-    paper-material > paper-button {
-      float: right;
-    }
-    paper-material > h3, paper-material > span  {
-      line-height: 41px;
-      padding: 5px 15px;
-    }
     .right {
-      float: right;
+        background-color: var(--text-background);
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
     }
     h3 {
       display: inline-block;
@@ -38,15 +39,11 @@
   </style>
   <template>
     <a href="{{comicURL(comic)}}">
-      <paper-material elevation="1">
-        <template is="dom-if" if="{{comic.banner_url}}">
-          <img src="{{comic.banner_url}}">
-        </template>
+      <paper-card heading="{{comic.name}}" image="{{comic.banner_url}}">
         <span class="right">
           <span>{{comic.idx}}</span>/<span>{{comic.max_idx}}</span>
         </span>
-        <h3>{{comic.name}}</h3>
-      </paper-material>
+      </paper-card>
     </a>
   </template>
 </dom-module>

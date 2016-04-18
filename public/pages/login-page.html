@@ -1,35 +1,46 @@
-<link rel="import" href="../lib/paper-material/paper-material.html">
+<link rel="import" href="../lib/paper-card/paper-card.html">
 <link rel="import" href="../lib/paper-button/paper-button.html">
 <link rel="import" href="../lib/paper-input/paper-input.html">
 
 <dom-module id="login-page">
   <style>
     :host {
+      --primary-text-color: white;
+      --primary-color: #FF0080;
+      --secondary-text-color: #777;
+      --paper-card-background-color: #222;
+      --paper-card-header-color: white;
     }
-    paper-material {
-      padding: 10px;
+    paper-card {
       margin: 10px;
+      display: block;
+    }
+    .card-actions {
+      border-color: #777;
     }
   </style>
   <template>
-    <paper-material elevation="1">
-      <h1>Login using your Comic Rocket Account</h1>
-      <paper-input label="Username" id="username"></paper-input>
-      <paper-input label="Password" type="password" id="password"></paper-input>
-      <paper-button id="login">Login</paper-button>
-    </paper-material>
+    <paper-card heading="Login using your Comic Rocket Account">
+      <div class="card-content">
+        <p>
+        This is an alternate interface for viewing comics from Comic Rocket. If you don't have a Comic Rocket account, create one <a href="https://www.comic-rocket.com/join">here</a>.
+        </p>
+        <paper-input label="Username" value="{{username}}"></paper-input>
+        <paper-input label="Password" type="password" value="{{password}}"></paper-input>
+      </div>
+      <div class="card-actions">
+        <paper-button on-tap="login">Login</paper-button>
+      </div>
+    </paper-card>
   </template>
 </dom-module>
 <script>
   Polymer({
     is: 'login-page',
-    listeners: {
-      'login.tap': 'login',
-    },
     login: function() {
       $.post('api/login', {
-        username: this.$.username.value,
-        password: this.$.password.value,
+        username: this.username,
+        password: this.password,
       }, function(data, status) {
         if (data) {
           window.localStorage.loggedIn = true;
