@@ -400,7 +400,7 @@ func main() {
 	}
 
 	ro := mux.NewRouter()
-	api := ro.Path("/api/")
+	api := ro.PathPrefix("/api").Subrouter()
 	api.Path("/comics").Methods("GET").HandlerFunc(s.getComics)
 	api.Path("/markcomic").Methods("POST").HandlerFunc(s.markComic)
 	api.Path("/comic").HandlerFunc(s.getComicPage)

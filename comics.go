@@ -22,7 +22,7 @@ type Comic struct {
 	Page        int      `json:"idx,omitempty"`
 	LastPage    int      `json:"max_idx,omitempty"`
 	URL         string   `json:"uri,omitempty"`
-	BannerURL   string   `json:"banner_url,omitempty"`
+	BannerURL   string   `json:"banner_url"`
 	Description string   `json:"description,omitempty"`
 }
 
@@ -102,7 +102,7 @@ func (s *server) annotateComics(comics []*Comic) error {
 		if !ok {
 			continue
 		}
-		if err := mergo.Merge(&comic, c); err != nil {
+		if err := mergo.Merge(comic, *c); err != nil {
 			return err
 		}
 	}
