@@ -15,15 +15,16 @@ import (
 )
 
 type Comic struct {
-	Name        string   `json:"name,omitempty"`
-	Slug        string   `json:"slug,omitempty"`
-	Rating      string   `json:"rating,omitempty"`
-	Genres      []string `json:"genres,omitempty"`
-	Page        int      `json:"idx,omitempty"`
-	LastPage    int      `json:"max_idx,omitempty"`
-	URL         string   `json:"uri,omitempty"`
-	BannerURL   string   `json:"banner_url"`
-	Description string   `json:"description,omitempty"`
+	Name         string   `json:"name,omitempty"`
+	Slug         string   `json:"slug,omitempty"`
+	Rating       string   `json:"rating,omitempty"`
+	Genres       []string `json:"genres,omitempty"`
+	Page         int      `json:"idx,omitempty"`
+	LastPage     int      `json:"max_idx,omitempty"`
+	URL          string   `json:"uri,omitempty"`
+	BannerURL    string   `json:"banner_url"`
+	Description  string   `json:"description,omitempty"`
+	ExtractRules []string `json:"extract_rules,omitempty"`
 }
 
 func (s *server) getComics(w http.ResponseWriter, r *http.Request) {

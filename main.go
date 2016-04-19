@@ -158,13 +158,10 @@ func resolveImageURLs(page string, doc *goquery.Document) error {
 	return err
 }
 
-var customRule = map[string][]string{
-	"ms-paint-adventures-homestuck": {"table table center > table > tbody"},
-	"el-goonish-shive":              {"#leftarea > #comicbody", "#leftarea > #news"},
-}
-
-func getComicImages(slug string, page int) ([]byte, error) {
-	if rules, ok := customRule[slug]; ok {
+func (s *server) getComicImages(slug string, page int) ([]byte, error) {
+	comic, ok := s.comicDB[slug]
+	if ok && len(comic.ExtractRules) > 0 {
+		rules := comic.ExtractRules
 		serial, err := getComic(slug, page)
 		if err != nil {
 			return nil, err
@@ -323,7 +320,7 @@ func (s *server) getComicPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 	}
-	imgs, err := getComicImages(slug, page)
+	imgs, err := s.getComicImages(slug, page)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 	}
