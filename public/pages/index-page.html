@@ -63,6 +63,11 @@
 
         <center>
         <paper-button on-tap="logout">Log Out</paper-button>
+        <paper-button on-tap="clearCache">Clear Cache</paper-button>
+        <p>
+        Used <span>{{formatNumber(usedBytes)}}</span>B of
+        <span>{{formatNumber(grantedBytes)}}</span>B.
+        </p>
         </center>
       </div>
     </paper-scroll-header-panel>
@@ -72,7 +77,7 @@
       url="api/comics"
       handle-as="json"
       on-response="handleResponse"
-      on-error="logout"
+      on-error="loadComicsFromCache"
       debounce-duration="300"></iron-ajax>
   </template>
 </dom-module>
@@ -86,6 +91,19 @@
         this.logout();
         return;
       }
+      this.updateUsage();
+    },
+
+    updateUsage: function() {
+      if (navigator && navigator.webkitTemporaryStorage &&
+          navigator.webkitTemporaryStorage.queryUsageAndQuota) {
+        navigator.webkitTemporaryStorage.queryUsageAndQuota (
+            (usedBytes, grantedBytes) => {
+              this.usedBytes = usedBytes;
+              this.grantedBytes = grantedBytes;
+            },
+            (e) => alert(e));
+      }
     },
 
     logout: function() {
@@ -93,31 +111,80 @@
       window.location.hash = '/login';
     },
 
+    clearCache: function() {
+      window.localforage.clear().then(() => {
+        this.updateUsage();
+      }).catch(alert);
+    },
+
     handleResponse: function(resp,req) {
       var self = this;
-      var comics =  req.xhr.response;
-      this.comics = comics;
-      this.comicsToRead = [];
-      this.comicsFinished = [];
+      var comics = req.xhr.response;
       if (!comics) {
         this.logout();
       } else {
-        comics.forEach(function(comic, i) {
-          var key = 'comic:'+comic.slug;
-          window.localforage.getItem(key).then(function(savedComic) {
-            if (savedComic) {
-              comic.idx = Math.max(comic.idx || 0, savedComic.idx || 0);
-              comics[i] = comic;
-            }
-            if (comic.idx == comic.max_idx) {
-              self.push('comicsFinished', comic);
-            } else {
-              self.push('comicsToRead', comic);
-            }
-            window.localforage.setItem(key, comic);
-          });
-        });
+        this.processComics(comics);
       }
     },
+
+    loadComicsFromCache: function() {
+      window.localforage.getItem('comics').then((keys) => {
+        if (!keys) {
+          return;
+        }
+        const comics = [];
+        const comicsPromises = [];
+        keys.forEach((key) => {
+          comicsPromises.push(window.localforage.getItem(key).then((comic) => {
+            comics.push(comic);
+          }));
+        });
+        Promise.all(comicsPromises).then(() => {
+          this.processComics(comics);
+        }).catch(alert);
+      });
+    },
+
+    processComics: function(comics) {
+      this.comics = comics;
+      this.comicsToRead = [];
+      this.comicsFinished = [];
+      var keys = [];
+      comics.forEach((comic, i) => {
+        var key = 'comic:'+comic.slug;
+        keys.push(key);
+        window.localforage.getItem(key).then((savedComic) => {
+          if (savedComic) {
+            comic.idx = Math.max(comic.idx || 0, savedComic.idx || 0);
+            comics[i] = comic;
+          }
+          if (comic.idx == comic.max_idx) {
+            this.push('comicsFinished', comic);
+          } else {
+            this.push('comicsToRead', comic);
+          }
+          window.localforage.setItem(key, comic).catch(alert);
+        }).catch(alert);
+      });
+      window.localforage.setItem('comics', keys).catch(alert);
+    },
+
+    formatNumber: function(n) {
+      var ranges = [
+        { divider: 1e18 , suffix: 'P' },
+        { divider: 1e15 , suffix: 'E' },
+        { divider: 1e12 , suffix: 'T' },
+        { divider: 1e9 , suffix: 'G' },
+        { divider: 1e6 , suffix: 'M' },
+        { divider: 1e3 , suffix: 'k' }
+      ];
+
+      for (var i = 0; i < ranges.length; i++) {
+        if (n >= ranges[i].divider) {
+          return (n / ranges[i].divider).toFixed(2) + ranges[i].suffix;
+        }
+      }
+      return n.toFixed(2);
+    }
   });
 </script>

@@ -37,6 +37,11 @@
 <script>
   Polymer({
     is: 'login-page',
+    ready: function() {
+      if (window.localStorage.loggedIn) {
+        window.location.hash = "#";
+      }
+    },
     login: function() {
       $.post('api/login', {
         username: this.username,

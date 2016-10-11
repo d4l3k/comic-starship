@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -332,6 +333,17 @@ func (s *server) getComicPage(w http.ResponseWriter, r *http.Request) {
 	w.Write(dataImgs)
 }
 
+var tmpls = template.Must(template.ParseFiles("templates/cache.manifest"))
+
+func (s *server) cacheManifest(w http.ResponseWriter, r *http.Request) {
+	/*if *debug {
+		version = time.Now().String() + " debug"
+	}*/
+	if err := tmpls.Lookup("cache.manifest").Execute(w, version); err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+}
+
 func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	http.DefaultClient.Jar, _ = cookiejar.New(nil)
 	r.ParseForm()
@@ -382,8 +394,18 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(strings.Contains(string(body), "My Comics"))
 }
 
+var version = time.Now().String()
+
 func main() {
 	flag.Parse()
+
+	versionBytes, err := ioutil.ReadFile(".git/refs/heads/master")
+	if err != nil {
+		log.Printf("Failed to read git version %v", err)
+	} else {
+		version += " " + string(versionBytes)
+	}
+	log.Printf("Version %s", version)
 
 	done, err := initDB()
 	if err != nil {
@@ -397,6 +419,11 @@ func main() {
 	}
 
 	ro := mux.NewRouter()
+	ro.Path("/cache.manifest").Methods("GET").HandlerFunc(s.cacheManifest)
+	ro.Path("/comicstarship/").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("debug"))
+	})
+
 	api := ro.PathPrefix("/api").Subrouter()
 	api.Path("/comics").Methods("GET").HandlerFunc(s.getComics)
 	api.Path("/markcomic").Methods("POST").HandlerFunc(s.markComic)
