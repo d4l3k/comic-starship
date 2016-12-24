@@ -12,11 +12,14 @@
 <dom-module id="comic-page">
   <style>
     :host {
-      display: block;
       background-color: black;
       min-height: calc(100vh - 60px);
       margin-bottom: 60px;
-      text-align: center;
+      display: flex;
+      /* width: 100%; */
+      justify-content: center;
+      flex-direction: column;
+      align-items: center;
     }
     a {
       color: inherit;
@@ -25,20 +28,15 @@
       padding: 10px;
     }
     .center {
-      display: block;
-      margin: 0 auto;
-      top: calc(50vh - 44px);
-
       --paper-spinner-layer-1-color: #FF0080;
       --paper-spinner-layer-2-color: #FF0080;
       --paper-spinner-layer-3-color: #FF0080;
       --paper-spinner-layer-4-color: #FF0080;
     }
     #comics {
-      max-width: 900px;
+      max-width: 1000px;
       background-color: white;
       display: inline-block;
-      text-align: left;
     }
     .right {
       float: right;
@@ -122,19 +120,25 @@
       this.urls = false;
 
       this.loggedIn = !!window.localStorage.loggedIn;
+    },
 
-      var hammertime = new Hammer(this, {
+    attach: function() {
+      this.hammer = new Hammer(document.body, {
         touchAction: 'auto',
       });
-      var self = this;
-      hammertime.on('swiperight', function(ev) {
+      this.hammer.on('swiperight', (ev) => {
         console.log(ev);
-        self.prev();
+        this.prev();
       });
-      hammertime.on('swipeleft', function(ev) {
+      this.hammer.on('swipeleft', (ev) => {
         console.log(ev);
-        self.next();
+        this.next();
       });
+    },
+
+    detach: function() {
+      this.hammer.destroy();
+      this.hammer = null;
     },
 
     properties: {
@@ -322,9 +326,9 @@
       var url = this.computeImageURL(this.comic.slug, page, 0);
       var key = this.comicPageKey(url);
       console.log('cacheComicPage', page, count);
-      AJAX_CACHE.fetch(url).then((response) => {
-        window.localforage.setItem(key, resp);
+      AJAX_CACHE.fetch(url).then((resp) => {
         if (!once) {
+          window.localforage.setItem(key, resp);
           self.cacheComicPage(page + 1);
         }
       });
