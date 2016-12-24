@@ -7,6 +7,8 @@
 <link rel="import" href="../lib/paper-material/paper-material.html">
 <link rel="import" href="../lib/paper-spinner/paper-spinner.html">
 <link rel="import" href="../lib/polymer/polymer.html">
+<link rel="import" href="../elements/ajax-cache.html">
+
 <dom-module id="comic-page">
   <style>
     :host {
@@ -104,18 +106,14 @@
       <paper-button on-tap="clearOld">clear Old ({{cachedCount}})</paper-button>
     </paper-dialog>
 
-    <iron-ajax
-      auto
+    <ajax-cache
       url="{{computeImageURL(slug, page, 0)}}"
-      handle-as="text"
       on-response="handleResponse"
-      last-error="{{error}}"
-      debounce-duration="300"></iron-ajax>
+      last-error="{{error}}"></ajax-cache>
   </template>
 
 </dom-module>
 <script>
-  var CACHE = {};
   Polymer({
     is: 'comic-page',
 
@@ -231,20 +229,13 @@
       return 'comic-page:'+url;
     },
 
-    handleResponse: function(resp,req) {
-      var url = new URL(req.xhr.responseURL);
-      var relURL = url.pathname + url.search;
-      var urls = req.xhr.response;
-      var key = this.comicPageKey(relURL);
-      window.localforage.setItem(key, urls);
-      if (relURL.endsWith(this.imageURL)) {
-        if (!urls) {
-          this.nav(-1);
-        } else {
-          this.$.comics.innerHTML = urls;
-          this.urls = urls;
-          this.cleanHTML();
-        }
+    handleResponse: function(_, resp) {
+      if (!resp) {
+        this.nav(-1);
+      } else {
+        this.$.comics.innerHTML = resp;
+        this.urls = resp;
+        this.cleanHTML();
       }
     },
 
@@ -331,20 +322,10 @@
       var url = this.computeImageURL(this.comic.slug, page, 0);
       var key = this.comicPageKey(url);
       console.log('cacheComicPage', page, count);
-      window.localforage.getItem(key).then(function(cachedPage) {
-        self.toCacheCount = count - 1;
-        self.cachedCount += 1;
-        if (cachedPage) {
-          if (!once) {
-            self.cacheComicPage(page + 1);
-          }
-        } else {
-          $.get(url, function(resp) {
-            window.localforage.setItem(key, resp);
-            if (!once) {
-              self.cacheComicPage(page + 1);
-            }
-          });
+      AJAX_CACHE.fetch(url).then((response) => {
+        window.localforage.setItem(key, resp);
+        if (!once) {
+          self.cacheComicPage(page + 1);
         }
       });
     },

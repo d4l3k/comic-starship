@@ -64,14 +64,23 @@ func getComic(slug string, page int) (*serialResp, error) {
 	return serial, json.NewDecoder(reader).Decode(serial)
 }
 
+var inFlightRequestsLock sync.Mutex
+var inFlightRequests = map[string]*sync.WaitGroup{}
+
 func httpGetOrCache(link string) ([]byte, error) {
 	var body []byte
 	err := db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("comics"))
+		inFlightRequestsLock.Lock()
+		req, ok := inFlightRequests[link]
+		inFlightRequestsLock.Unlock()
+		if ok {
+			req.Wait()
+		}
 		body = bucket.Get([]byte(link))
 
 		bucketUpdated := tx.Bucket([]byte("comics-updated"))
-		updated := bucket.Get([]byte(link))
+		updated := bucketUpdated.Get([]byte(link))
 
 		updateTime := time.Now()
 		if err := updateTime.UnmarshalText(updated); err != nil {
@@ -80,6 +89,13 @@ func httpGetOrCache(link string) ([]byte, error) {
 
 		if len(body) == 0 || len(updated) == 0 || (time.Now().Sub(updateTime) > 24*time.Hour) {
 			log.Println("Fetching", link)
+
+			inFlightRequestsLock.Lock()
+			var wg sync.WaitGroup
+			wg.Add(1)
+			inFlightRequests[link] = &wg
+			inFlightRequestsLock.Unlock()
+
 			resp, err := http.Get(link)
 			if err != nil {
 				return err
@@ -94,6 +110,7 @@ func httpGetOrCache(link string) ([]byte, error) {
 				return err
 			}
 			bucketUpdated.Put([]byte(link), t)
+			wg.Done()
 		} else {
 			log.Println("Cached", link)
 		}

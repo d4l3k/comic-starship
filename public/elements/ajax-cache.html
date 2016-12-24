@@ -1,0 +1,64 @@
+<dom-module id="ajax-cache">
+</dom-module>
+
+<script>
+Polymer({
+  is: 'ajax-cache',
+
+  properties: {
+    lastError: {
+      type: Object,
+      notify: true,
+      value: null,
+    },
+  },
+
+  ready: function() {
+  },
+
+  observers: [
+    'fetch(url)',
+  ],
+
+  fetch: function(url) {
+    AJAX_CACHE.fetch(url).then((response) => {
+      this.response = response;
+      this.lastError = null;
+      this.fire('response', response);
+    }).catch((err) => {
+      this.lastError = err;
+    });
+  },
+});
+
+(function() {
+  if (window.AJAX_CACHE) {
+    return;
+  }
+
+  function key(url) {
+    if (url.substr(0,1) === "/") {
+      url = url.substr(1);
+    }
+    return 'comic-page:'+url;
+  };
+
+  var cache = {pending: {}};
+  cache.fetch = (url) => {
+    if (cache.pending[url]) {
+      return cache.pending[url];
+    }
+    let result = window.localforage.getItem(key(url)).then((body) => {
+      if (body) {
+        return Promise.resolve(body);
+      }
+      return fetch(url).then((response) => {
+        return response.text();
+      });
+    });
+    cache.pending[url] = result;
+    return result;
+  };
+  window.AJAX_CACHE = cache;
+})();
+</script>
