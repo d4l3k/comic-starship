@@ -68,55 +68,65 @@ var inFlightRequestsLock sync.Mutex
 var inFlightRequests = map[string]*sync.WaitGroup{}
 
 func httpGetOrCache(link string) ([]byte, error) {
-	var body []byte
-	err := db.Update(func(tx *bolt.Tx) error {
+	inFlightRequestsLock.Lock()
+	req, ok := inFlightRequests[link]
+	if ok {
+		req.Wait()
+	}
+	inFlightRequestsLock.Unlock()
+	var body, updated []byte
+	if err := db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("comics"))
-		inFlightRequestsLock.Lock()
-		req, ok := inFlightRequests[link]
-		inFlightRequestsLock.Unlock()
-		if ok {
-			req.Wait()
-		}
 		body = bucket.Get([]byte(link))
 
 		bucketUpdated := tx.Bucket([]byte("comics-updated"))
-		updated := bucketUpdated.Get([]byte(link))
+		updated = bucketUpdated.Get([]byte(link))
+		return nil
+	}); err != nil {
+		return nil, err
+	}
 
-		updateTime := time.Now()
-		if err := updateTime.UnmarshalText(updated); err != nil {
-			updated = nil
+	updateTime := time.Now()
+	if err := updateTime.UnmarshalText(updated); err != nil {
+		updated = nil
+	}
+
+	if len(body) == 0 || len(updated) == 0 || (time.Now().Sub(updateTime) > 24*time.Hour) {
+		log.Println("Fetching", link)
+
+		inFlightRequestsLock.Lock()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		inFlightRequests[link] = &wg
+		inFlightRequestsLock.Unlock()
+
+		resp, err := http.Get(link)
+		if err != nil {
+			return nil, err
+		}
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
 		}
 
-		if len(body) == 0 || len(updated) == 0 || (time.Now().Sub(updateTime) > 24*time.Hour) {
-			log.Println("Fetching", link)
-
-			inFlightRequestsLock.Lock()
-			var wg sync.WaitGroup
-			wg.Add(1)
-			inFlightRequests[link] = &wg
-			inFlightRequestsLock.Unlock()
-
-			resp, err := http.Get(link)
-			if err != nil {
-				return err
-			}
-			body, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return err
-			}
+		if err := db.Update(func(tx *bolt.Tx) error {
+			bucket := tx.Bucket([]byte("comics"))
+			bucketUpdated := tx.Bucket([]byte("comics-updated"))
 			bucket.Put([]byte(link), body)
 			t, err := time.Now().MarshalText()
 			if err != nil {
 				return err
 			}
 			bucketUpdated.Put([]byte(link), t)
-			wg.Done()
-		} else {
-			log.Println("Cached", link)
+			return nil
+		}); err != nil {
+			return nil, err
 		}
-		return nil
-	})
-	return body, err
+		wg.Done()
+	} else {
+		log.Println("Cached", link)
+	}
+	return body, nil
 }
 
 func fetchDoc(link string) (*goquery.Document, error) {
@@ -144,14 +154,15 @@ func fetchImages(slug string, page int) ([]string, error) {
 	}
 
 	imgs := doc.Find("img")
-	urls := make([]string, imgs.Length())
-	imgs.EachWithBreak(func(i int, img *goquery.Selection) bool {
-		urls[i] = img.AttrOr("src", "")
-		return true
+	var urls []string
+	imgs.Each(func(_ int, img *goquery.Selection) {
+		src := img.AttrOr("src", "")
+
+		// Blacklist gravatar pictures since they don't contribute anything.
+		if !strings.Contains(src, "gravatar.com") {
+			urls = append(urls, src)
+		}
 	})
-	if err != nil {
-		return nil, err
-	}
 	return urls, nil
 }
 
