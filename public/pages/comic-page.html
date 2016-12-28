@@ -8,6 +8,7 @@
 <link rel="import" href="../lib/paper-spinner/paper-spinner.html">
 <link rel="import" href="../lib/polymer/polymer.html">
 <link rel="import" href="../elements/ajax-cache.html">
+<link rel="import" href="../elements/hls-video.html">
 
 <dom-module id="comic-page">
   <style>
@@ -105,7 +106,7 @@
     </paper-dialog>
 
     <ajax-cache
-      url="{{computeImageURL(slug, page, 0)}}"
+      url="{{computeImageURL(service, slug, page, 0)}}"
       on-response="handleResponse"
       last-error="{{error}}"></ajax-cache>
   </template>
@@ -148,7 +149,7 @@
       },
       imageURL: {
         type: String,
-        computed: 'computeImageURL(slug, page, 0)',
+        computed: 'computeImageURL(service, slug, page, 0)',
         observer: 'decache',
       },
       boundKeys: {
@@ -213,8 +214,8 @@
       $('#comics table[width]').attr('width','');
     },
 
-    computeImageURL: function(slug, page, offset) {
-      var url = "api/comic?slug="+slug+"&p="+(parseInt(page) + offset);
+    computeImageURL: function(service, slug, page, offset) {
+      var url = "api/comic?service="+service+"&slug="+slug+"&p="+(parseInt(page) + offset);
       return url;
     },
 
@@ -280,7 +281,7 @@
       return window.localforage.keys().then(function(keys) {
         var keySet = new Set(keys);
         for (var i=(self.comic.idx+1); i<=self.comic.max_idx; i++) {
-          var key = self.comicPageKey(self.computeImageURL(self.comic.slug, i, 0));
+          var key = self.comicPageKey(self.computeImageURL(self.comic.service, self.comic.slug, i, 0));
           if (!keySet.has(key)) {
             console.log('missing', key);
             return i - self.comic.idx - 1;
@@ -300,7 +301,7 @@
 
     clearOld: function() {
       for (var i=0;i<this.comic.idx;i++) {
-        var key = this.comicPageKey(this.computeImageURL(this.comic.slug, i, 0));
+        var key = this.comicPageKey(this.computeImageURL(self.comic.service, this.comic.slug, i, 0));
         window.localforage.removeItem(key);
       }
     },
@@ -323,7 +324,7 @@
         return;
       }
       var self = this;
-      var url = this.computeImageURL(this.comic.slug, page, 0);
+      var url = this.computeImageURL(self.comic.service, this.comic.slug, page, 0);
       var key = this.comicPageKey(url);
       console.log('cacheComicPage', page, count);
       AJAX_CACHE.fetch(url).then((resp) => {

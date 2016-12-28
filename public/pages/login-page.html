@@ -1,6 +1,8 @@
 <link rel="import" href="../lib/paper-card/paper-card.html">
 <link rel="import" href="../lib/paper-button/paper-button.html">
 <link rel="import" href="../lib/paper-input/paper-input.html">
+<link rel="import" href="../lib/iron-form/iron-form.html">
+<link rel="import" href="../elements/app-container.html">
 
 <dom-module id="login-page">
   <style>
@@ -20,32 +22,78 @@
     }
   </style>
   <template>
-    <paper-card heading="Login using your Comic Rocket Account">
-      <div class="card-content">
-        <p>
-        This is an alternate interface for viewing comics from Comic Rocket. If you don't have a Comic Rocket account, create one <a href="https://www.comic-rocket.com/join">here</a>.
-        </p>
-        <paper-input label="Username" value="{{username}}"></paper-input>
-        <paper-input label="Password" type="password" value="{{password}}"></paper-input>
-      </div>
-      <div class="card-actions">
-        <paper-button on-tap="login">Login</paper-button>
-      </div>
-    </paper-card>
+    <app-container>
+      <h2>Accounts</h2>
+      <template is="dom-repeat" items="{{ACCOUNTS}}">
+        <div class="account">
+          <h3>[[item.name]]</h3>
+          <p>
+            If you don't have a [[item.name]] account, create one
+            <a href="[[item.register]]">here</a>.
+          </p>
+
+          <form is="iron-form"
+                method="post"
+                action="../api/login"
+                on-iron-form-response="handleResp"
+                on-iron-form-error="error">
+            <input type="hidden" name="service" value="[[item.id]]">
+            <paper-input label="Username" name="username"></paper-input>
+            <paper-input label="Password" type="password" name="password"></paper-input>
+            <paper-button on-tap="login">Login</paper-button>
+            <template is="dom-if" if="[[loggedIn(item.id, item.loggedIn)]]">
+              <span class="warn">You appear to be logged in!</span>
+            </template>
+          </form>
+        </div>
+      </template>
+      <a href="#/"><paper-button raised>Return to Home</paper-button></a>
+    </app-container>
   </template>
 </dom-module>
 <script>
+  const ACCOUNTS = [{
+    id: 'comicrocket',
+    name: 'Comic Rocket',
+    register: 'https://www.comic-rocket.com/join',
+  }, {
+    id: 'funimation',
+    name: 'Funimation',
+    register: 'http://www.funimation.com/p/subscribe/join_now',
+  }];
+
   Polymer({
     is: 'login-page',
-    ready: function() {
-      if (window.localStorage.loggedIn) {
-        window.location.hash = "#";
-      }
+
+    properties: {
+      ACCOUNTS: {value: () => ACCOUNTS},
     },
-    login: function() {
-      $.post('api/login', {
-        username: this.username,
-        password: this.password,
+
+    ready: function() {
+      this.ACCOUNTS.forEach((acc, i) => {
+        acc.index = i;
+        acc.loggedIn = false;
+      });
+    },
+
+    error: function(e) {
+      console.log(e);
+      alert('error logging in!');
+    },
+
+    loggedIn: function(slug, loggedIn) {
+      return loggedIn || document.cookie.includes(slug+'-');
+    },
+
+    login: function(e) {
+      const form = e.target.parentElement;
+      form.submit();
+    },
+
+    handleResp: function(e) {
+      var acc = e.model.item;
+      this.set(['ACCOUNTS', acc.index, 'loggedIn'], e.detail.response);
+      /*
       }, function(data, status) {
         if (data) {
           window.localStorage.loggedIn = true;
@@ -55,6 +103,7 @@
         }
         console.log('result', data, status);
       });
+      */
     },
   });
 </script>

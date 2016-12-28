@@ -33,13 +33,17 @@
         #comics {
           color: #444;
         }
-        a {
+        a, .warn {
           color: #FF0080;
+        }
+        h2 {
+          font-weight: 200;
+          color: white;
         }
       </style>
       <app-router>
-        <app-route path="/login" element="login-page"></app-route>
-        <app-route path="/comic/:slug/:page" element="comic-page"></app-route>
+        <app-route path="/accounts" element="login-page"></app-route>
+        <app-route path="/:service/:slug/:page" element="comic-page"></app-route>
         <app-route path="*" element="index-page"></app-route>
       </app-router>
   </body>

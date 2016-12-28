@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os/exec"
 )
@@ -11,7 +12,7 @@ func vulcanize() ([]byte, error) {
 	stdout, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Println("STDOUT ", string(stdout))
-		return nil, err
+		return nil, errors.New(err.Error() + "\n" + string(stdout))
 	}
 	return stdout, nil
 }

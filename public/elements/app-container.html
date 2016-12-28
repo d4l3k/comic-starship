@@ -1,0 +1,56 @@
+<link rel="import" href="../lib/polymer/polymer.html">
+<link rel="import" href="../lib/paper-scroll-header-panel/paper-scroll-header-panel.html">
+<link rel="import" href="../lib/paper-toolbar/paper-toolbar.html">
+<dom-module id="app-container">
+  <style>
+    :host {
+      display: block;
+      --paper-toolbar-title: {
+        margin-left: 0 !important;
+      };
+    }
+    paper-scroll-header-panel {
+      height: 100%;
+    }
+    .comics-content {
+      padding: 10px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .paper-font-subhead {
+      @apply(--paper-font-subhead);
+    }
+    paper-toolbar {
+      overflow: hidden;
+      background-color: #222;
+    }
+    a + span {
+      margin-left: 20px;
+    }
+    a.btn {
+      color: white;
+      text-decoration: none;
+    }
+  </style>
+  <template>
+    <paper-scroll-header-panel condenses>
+      <paper-toolbar>
+        <span class="title">
+          Comic Starship
+        </span>
+        <a class="btn" href="#/"><paper-button>View</paper-button></a>
+        <a class="btn" href="#/accounts"><paper-button>Accounts</paper-button></a>
+        <span class="paper-font-subhead">By <a href="https://fn.lc">Tristan Rice</a></span>
+      </paper-toolbar>
+      <div class="comics-content">
+        <content></content>
+      </div>
+    </paper-scroll-header-panel>
+  </template>
+</dom-module>
+<script>
+  Polymer({
+    is: 'app-container',
+  });
+</script>
+

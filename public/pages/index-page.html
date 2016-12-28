@@ -1,10 +1,10 @@
 <link rel="import" href="../lib/polymer/polymer.html">
 <link rel="import" href="../lib/iron-ajax/iron-ajax.html">
-<link rel="import" href="../lib/paper-scroll-header-panel/paper-scroll-header-panel.html">
-<link rel="import" href="../lib/paper-toolbar/paper-toolbar.html">
 <link rel="import" href="../lib/paper-styles/paper-styles.html">
 <link rel="import" href="../lib/paper-styles/typography.html">
 <link rel="import" href="../elements/comic.html">
+<link rel="import" href="../elements/app-container.html">
+
 <dom-module id="index-page">
   <style>
     :root {
@@ -14,63 +14,30 @@
       --paper-card-background-color: #222;
       --paper-card-header-color: white;
     }
-    :host {
-      display: block;
-      --paper-toolbar-title: {
-        margin-left: 0 !important;
-      };
-    }
-    paper-scroll-header-panel {
-      height: 100%;
-    }
-    .comics-content {
-      padding: 10px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    .paper-font-subhead {
-      @apply(--paper-font-subhead);
-    }
-    paper-toolbar {
-      overflow: hidden;
-      background-color: #222;
-    }
-    h2 {
-      font-weight: 200;
-      color: white;
-    }
   </style>
   <template>
-    <paper-scroll-header-panel condenses>
-      <paper-toolbar>
-        <span class="title">
-          Comic Starship
-        </span>
-        <span class="paper-font-subhead">By <a href="https://fn.lc">Tristan Rice</a></span>
-      </paper-toolbar>
-      <div class="comics-content">
-        <h2>
-          To Read
-          (<span>[[comicsToRead.length]]</span>/<span>[[comics.length]]</span>)
-        </h2>
-        <template is="dom-repeat" items="{{comicsToRead}}">
-          <comic-card comic="{{item}}"></comic-card>
-        </template>
-        <h2>No New Pages</h2>
-        <template is="dom-repeat" items="{{comicsFinished}}">
-          <comic-card comic="{{item}}"></comic-card>
-        </template>
+    <app-container>
+      <h2>
+        To Read
+        (<span>[[comicsToRead.length]]</span>/<span>[[comics.length]]</span>)
+      </h2>
+      <template is="dom-repeat" items="{{comicsToRead}}">
+        <comic-card comic="{{item}}"></comic-card>
+      </template>
+      <h2>No New Pages</h2>
+      <template is="dom-repeat" items="{{comicsFinished}}">
+        <comic-card comic="{{item}}"></comic-card>
+      </template>
 
-        <center>
-        <paper-button on-tap="logout">Log Out</paper-button>
-        <paper-button on-tap="clearCache">Clear Cache</paper-button>
-        <p>
-        Used <span>{{formatNumber(usedBytes)}}</span>B of
-        <span>{{formatNumber(grantedBytes)}}</span>B.
-        </p>
-        </center>
-      </div>
-    </paper-scroll-header-panel>
+      <center>
+      <paper-button on-tap="logout">Log Out</paper-button>
+      <paper-button on-tap="clearCache">Clear Cache</paper-button>
+      <p>
+      Used <span>{{formatNumber(usedBytes)}}</span>B of
+      <span>{{formatNumber(grantedBytes)}}</span>B.
+      </p>
+      </center>
+    </app-container>
 
     <iron-ajax
       auto

@@ -41,7 +41,7 @@
     <a href="{{comicURL(comic)}}">
       <paper-card heading="{{comic.name}}" image="{{comic.banner_url}}">
         <span class="right">
-          <span>{{comic.idx}}</span>/<span>{{comic.max_idx}}</span>
+          <span>{{orZero(comic.idx)}}</span>/<span>{{orZero(comic.max_idx)}}</span>
         </span>
       </paper-card>
     </a>
@@ -57,8 +57,12 @@
       }
     },
 
+    orZero: function(v) {
+      return v || 0;
+    },
+
     comicURL: function(comic) {
-      return "#/comic/"+comic.slug+"/"+(comic.idx+1);
+      return "#/"+comic.service+"/"+comic.slug+"/"+(comic.idx+1);
     },
   });
 </script>

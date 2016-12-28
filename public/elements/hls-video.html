@@ -1,0 +1,62 @@
+<dom-module id="hls-video">
+  <style>
+   video {
+     width: 1000px;
+     max-width: 100%;
+     height: 480px;
+   }
+  </style>
+  <template>
+    <video id="video" controls>
+    </video>
+  </template>
+</dom-module>
+
+<script src="../lib/hls.js/dist/hls.min.js"></script>
+<script>
+  Polymer({
+    is: 'hls-video',
+
+    properties: {
+      src: {
+        type: String,
+      },
+    },
+
+    ready: function() {
+      this.hls = new Hls();
+      this.hls.attachMedia(this.$.video);
+      this.hls.on(Hls.Events.MANIFEST_PARSED,function() {
+        video.play();
+      });
+      this.hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch(data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              // try to recover network error
+              console.log("fatal network error encountered, try to recover");
+              this.hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log("fatal media error encountered, try to recover");
+              this.hls.recoverMediaError();
+              break;
+            default:
+              // cannot recover
+              this.hls.destroy();
+              break;
+          }
+        }
+      });
+    },
+
+    observers: [
+      'updateSource(hls, src)',
+    ],
+
+    updateSource: function(hls, src) {
+      hls.loadSource(src);
+    }
+  });
+</script>
+</dom-module>

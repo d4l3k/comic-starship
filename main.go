@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httputil"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -21,8 +22,11 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/boltdb/bolt"
+	funimation "github.com/d4l3k/go-funimation"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/vincent-petithory/dataurl"
+	funimationlib "golang.ssttevee.com/funimation/lib"
 )
 
 //go:generate npm install
@@ -32,19 +36,23 @@ var debug = flag.Bool("debug", false, "whether to revulcanize on every request")
 
 const (
 	COMIC_ROCKET_COMICS_URL = "https://www.comic-rocket.com/api/1/marked/"
+	COMIC_ROCKET_BASE_URL   = "https://www.comic-rocket.com/"
+	ComicRocketSlug         = "comicrocket"
+
+	FunimationSlug = "funimation"
 )
 
-func getCSRFToken() (string, []*http.Cookie, error) {
-	resp, err := http.Get("https://www.comic-rocket.com/login?next=/")
+func getCSRFToken(client *http.Client) (string, error) {
+	resp, err := client.Get("https://www.comic-rocket.com/login?next=/")
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 	doc, err := goquery.NewDocumentFromResponse(resp)
 	if err != nil {
-		return "", nil, err
+		return "", err
 	}
 	log.Println("cookies", resp.Cookies())
-	return doc.Find("[name=\"csrfmiddlewaretoken\"]").AttrOr("value", ""), resp.Cookies(), nil
+	return doc.Find("[name=\"csrfmiddlewaretoken\"]").AttrOr("value", ""), nil
 }
 
 type serialResp struct {
@@ -334,31 +342,90 @@ func (s *server) markComic(w http.ResponseWriter, r *http.Request) {
 		client.Jar, _ = cookiejar.New(nil)
 		u, _ := url.Parse(markURL)
 		client.Jar.SetCookies(u, r.Cookies())
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			http.Error(w, err.Error(), 503)
 			return
 		}
+		defer resp.Body.Close()
 		io.Copy(w, resp.Body)
 	}
 }
 
 func (s *server) getComicPage(w http.ResponseWriter, r *http.Request) {
+	service := r.URL.Query().Get("service")
 	slug := r.URL.Query().Get("slug")
 	page, err := strconv.Atoi(r.URL.Query().Get("p"))
 	if err != nil {
 		http.Error(w, err.Error(), 400)
+		return
 	}
-	imgs, err := s.getComicImages(slug, page)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
+	var resp []byte
+	switch service {
+	case ComicRocketSlug:
+		imgs, err := s.getComicImages(slug, page)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+		resp, err = inlineImages(imgs)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+	case FunimationSlug:
+		//resp = []byte(fmt.Sprintf(`<hls-video src="/api/video.m3u8?service=%s&slug=%s&p=%d"></hls-video>`, service, slug, page))
+		resp = []byte(fmt.Sprintf(`<video controls><source src="/api/video.mp4?service=%s&slug=%s&p=%d" type="video/mp4"></video>`, service, slug, page))
+
+	default:
+		http.Error(w, fmt.Sprintf("invalid service: %q", service), 400)
+		return
 	}
-	dataImgs, err := inlineImages(imgs)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-	}
+
 	w.Header().Set("Content-Type", "text/html")
-	w.Write(dataImgs)
+	w.Write(resp)
+}
+
+func (s *server) getVideo(w http.ResponseWriter, r *http.Request) {
+	service := r.URL.Query().Get("service")
+	slug := r.URL.Query().Get("slug")
+	page, err := strconv.Atoi(r.URL.Query().Get("p"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	switch service {
+	case FunimationSlug:
+		c := funimation.NewClient()
+		c.SetCookies(extractCookiesToForward(r, FunimationSlug))
+		dc := c.DownloadClient()
+		s, err := dc.GetSeries(slug)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		ep, err := s.GetEpisode(page)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		videoURL, err := ep.GuessVideoUrl(funimationlib.Dubbed, funimationlib.StandardDefinition)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		u, err := url.Parse(videoURL)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		proxy := httputil.NewSingleHostReverseProxy(u)
+		proxy.ServeHTTP(w, r)
+	default:
+		http.Error(w, fmt.Sprintf("invalid service: %q", service), 400)
+		return
+	}
 }
 
 var tmpls = template.Must(template.ParseFiles("templates/cache.manifest"))
@@ -372,54 +439,87 @@ func (s *server) cacheManifest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *server) login(w http.ResponseWriter, r *http.Request) {
-	http.DefaultClient.Jar, _ = cookiejar.New(nil)
-	r.ParseForm()
+func (s *server) loginComicRocket(r *http.Request) (bool, []*http.Cookie, error) {
 	v := r.Form
 	v.Add("next", "/")
-	token, cookies, err := getCSRFToken()
+	jar, _ := cookiejar.New(nil)
+	client := http.Client{
+		Jar: jar,
+	}
+	token, err := getCSRFToken(&client)
 	if err != nil {
-		http.Error(w, err.Error(), 503)
-		return
+		return false, nil, err
 	}
 	v.Add("csrfmiddlewaretoken", token)
 	log.Print("token", token, v)
 
 	req, err := http.NewRequest("POST", "https://www.comic-rocket.com/login", strings.NewReader(v.Encode()))
 	if err != nil {
-		http.Error(w, err.Error(), 503)
-		return
-	}
-	for _, cookie := range cookies {
-		req.AddCookie(cookie)
+		return false, nil, err
 	}
 	req.Header.Add("Referer", "https://www.comic-rocket.com/login?next=/")
 	req.Header.Add("Origin", "https://www.comic-rocket.com")
 	req.Header.Add("Host", "www.comic-rocket.com")
 	req.Header.Add("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		http.Error(w, err.Error(), 503)
-		return
+		return false, nil, err
 	}
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		http.Error(w, err.Error(), 503)
-		return
-	}
-	for _, cookie := range cookies {
-		if cookie.Name != "sessionid" {
-			w.Header().Add("Set-Cookie", cookie.String())
-		}
+		return false, nil, err
 	}
 	u, _ := url.Parse(COMIC_ROCKET_COMICS_URL)
-	cookis := http.DefaultClient.Jar.Cookies(u)
-	log.Println("jar", cookis)
-	for _, cookie := range cookis {
-		w.Header().Add("Set-Cookie", cookie.String())
+	cookies := client.Jar.Cookies(u)
+	return bytes.Contains(body, []byte("My Comics")), cookies, nil
+	/*
+	 */
+}
+
+func (s *server) loginFunimation(r *http.Request) (bool, []*http.Cookie, error) {
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	c := funimation.NewClient()
+	_, err := c.Login(username, password)
+	if err != nil {
+		return false, nil, err
+	}
+	return true, c.Cookies(), nil
+}
+
+func (s *server) login(w http.ResponseWriter, r *http.Request) {
+	http.DefaultClient.Jar, _ = cookiejar.New(nil)
+	r.ParseForm()
+	service := r.FormValue("service")
+	var (
+		success bool
+		cookies []*http.Cookie
+		err     error
+	)
+	switch service {
+	case ComicRocketSlug:
+		success, cookies, err = s.loginComicRocket(r)
+	case FunimationSlug:
+		success, cookies, err = s.loginFunimation(r)
+	default:
+		err = errors.Errorf("invalid service %q", service)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	for _, c := range cookies {
+		c.Name = service + "-" + c.Name
+		c.Path = "/"
+		w.Header().Add("Set-Cookie", c.String())
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(strings.Contains(string(body), "My Comics"))
+	if err := json.NewEncoder(w).Encode(success); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 }
 
 var version = time.Now().String()
@@ -456,6 +556,8 @@ func main() {
 	api.Path("/comics").Methods("GET").HandlerFunc(s.getComics)
 	api.Path("/markcomic").Methods("POST").HandlerFunc(s.markComic)
 	api.Path("/comic").HandlerFunc(s.getComicPage)
+	api.Path("/video.m3u8").Methods("GET").HandlerFunc(s.getVideo)
+	api.Path("/video.mp4").Methods("GET").HandlerFunc(s.getVideo)
 	api.Path("/login").Methods("POST").HandlerFunc(s.login)
 
 	ro.PathPrefix("/lib/").Handler(http.FileServer(http.Dir("./public")))
