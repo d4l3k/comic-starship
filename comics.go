@@ -127,23 +127,37 @@ func (s *server) getFunimationVideos(r *http.Request) ([]*Comic, error) {
 func (s *server) getComics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	comics, err := s.getComicRocketComics(r)
-	if err != nil {
-		http.Error(w, errors.Wrap(err, "getComics: comicrocket").Error(), 500)
-		return
+	var comicsSourceFuncs = map[string]func(r *http.Request) ([]*Comic, error){
+		ComicRocketSlug: s.getComicRocketComics,
+		FunimationSlug:  s.getFunimationVideos,
 	}
 
-	videos, err := s.getFunimationVideos(r)
-	if err != nil {
-		http.Error(w, errors.Wrap(err, "getComics: funimation").Error(), 500)
-		return
+	var combinedComicsMu struct {
+		sync.Mutex
+		Comics []*Comic
 	}
-	log.Println("videos", videos)
-	comics = append(comics, videos...)
+	var wg sync.WaitGroup
+	for s, f := range comicsSourceFuncs {
+		s := s
+		f := f
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			comics, err := f(r)
+			if err != nil {
+				http.Error(w, errors.Wrapf(err, "getComics: %s", s).Error(), 500)
+				return
+			}
+			combinedComicsMu.Lock()
+			defer combinedComicsMu.Unlock()
+			combinedComicsMu.Comics = append(combinedComicsMu.Comics, comics...)
+		}()
+	}
+	wg.Wait()
 
-	sort.Sort(ComicsSlice(comics))
+	sort.Sort(ComicsSlice(combinedComicsMu.Comics))
 
-	if err := json.NewEncoder(w).Encode(comics); err != nil {
+	if err := json.NewEncoder(w).Encode(combinedComicsMu.Comics); err != nil {
 		http.Error(w, err.Error(), 500)
 	}
 }
