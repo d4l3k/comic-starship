@@ -2,22 +2,19 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
-	funimation "github.com/d4l3k/go-funimation"
+	"github.com/gernest/front"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"github.com/russross/blackfriday"
-	"github.com/spf13/hugo/parser"
 )
 
 type Comic struct {
@@ -74,62 +71,11 @@ func (s *server) getComicRocketComics(r *http.Request) ([]*Comic, error) {
 	return comics, nil
 }
 
-func (s *server) getFunimationVideos(r *http.Request) ([]*Comic, error) {
-	c := funimation.NewClient()
-	cookies := extractCookiesToForward(r, FunimationSlug)
-	c.SetCookies(cookies)
-	resp, err := c.Queue(10000, 0)
-	if err != nil {
-		return nil, err
-	}
-	comics := make([]*Comic, len(resp.Queue))
-	var wg sync.WaitGroup
-	for i, show := range resp.Queue {
-		i := i
-		show := show
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			video := resp.NextVideo[show.ShowID]
-			log.Printf("video %+v %+v", show, video)
-			ep, err2 := strconv.Atoi(video.VideoSequence)
-			if err2 != nil {
-				err = err2
-				return
-			}
-			ep--
-			showDetails, err2 := funimation.GetShow(show.ShowID)
-			if err2 != nil {
-				err = err2
-				return
-			}
-			comics[i] = &Comic{
-				Name:        show.Title,
-				Slug:        show.ShowURL,
-				LastPage:    showDetails.EpisodeCount,
-				Page:        ep,
-				Service:     FunimationSlug,
-				Description: showDetails.SeriesDescription,
-				BannerURL:   showDetails.ThumbnailLarge,
-				URL:         showDetails.Link,
-				Genres:      strings.Split(showDetails.Genres, ","),
-			}
-		}()
-	}
-	wg.Wait()
-	if err != nil {
-		return nil, err
-	}
-	return comics, nil
-}
-
 func (s *server) getComics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var comicsSourceFuncs = map[string]func(r *http.Request) ([]*Comic, error){
 		ComicRocketSlug: s.getComicRocketComics,
-		FunimationSlug:  s.getFunimationVideos,
 	}
 
 	var combinedComicsMu struct {
@@ -179,11 +125,9 @@ func (s *server) loadComicDetails() error {
 		comic := &Comic{
 			Slug: slug,
 		}
-		page, err := parser.ReadFrom(file)
-		if err != nil {
-			return err
-		}
-		metaData, err := page.Metadata()
+		matter := front.NewMatter()
+		matter.Handle("---", front.YAMLHandler)
+		metaData, page, err := matter.Parse(file)
 		if err != nil {
 			return err
 		}
@@ -194,7 +138,7 @@ func (s *server) loadComicDetails() error {
 		if err := json.Unmarshal(jsonStr, &comic); err != nil {
 			return err
 		}
-		comic.Description = string(blackfriday.MarkdownCommon(page.Content()))
+		comic.Description = string(blackfriday.MarkdownCommon([]byte(page)))
 		s.comicDB[comic.Slug] = comic
 	}
 	return nil

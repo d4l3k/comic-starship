@@ -11,7 +11,6 @@ import (
 	"mime"
 	"net/http"
 	"net/http/cookiejar"
-	"net/http/httputil"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -22,11 +21,9 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/boltdb/bolt"
-	funimation "github.com/d4l3k/go-funimation"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/vincent-petithory/dataurl"
-	funimationlib "golang.ssttevee.com/funimation/lib"
 )
 
 //go:generate npm install
@@ -38,8 +35,6 @@ const (
 	COMIC_ROCKET_COMICS_URL = "https://www.comic-rocket.com/api/1/marked/"
 	COMIC_ROCKET_BASE_URL   = "https://www.comic-rocket.com/"
 	ComicRocketSlug         = "comicrocket"
-
-	FunimationSlug = "funimation"
 )
 
 func getCSRFToken(client *http.Client) (string, error) {
@@ -374,10 +369,6 @@ func (s *server) getComicPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-	case FunimationSlug:
-		//resp = []byte(fmt.Sprintf(`<hls-video src="/api/video.m3u8?service=%s&slug=%s&p=%d"></hls-video>`, service, slug, page))
-		resp = []byte(fmt.Sprintf(`<video controls><source src="/api/video.mp4?service=%s&slug=%s&p=%d" type="video/mp4"></video>`, service, slug, page))
-
 	default:
 		http.Error(w, fmt.Sprintf("invalid service: %q", service), 400)
 		return
@@ -395,33 +386,9 @@ func (s *server) getVideo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
+	_ = slug
+	_ = page
 	switch service {
-	case FunimationSlug:
-		c := funimation.NewClient()
-		c.SetCookies(extractCookiesToForward(r, FunimationSlug))
-		dc := c.DownloadClient()
-		s, err := dc.GetSeries(slug)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		ep, err := s.GetEpisode(page)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		videoURL, err := ep.GuessVideoUrl(funimationlib.Dubbed, funimationlib.StandardDefinition)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		u, err := url.Parse(videoURL)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		proxy := httputil.NewSingleHostReverseProxy(u)
-		proxy.ServeHTTP(w, r)
 	default:
 		http.Error(w, fmt.Sprintf("invalid service: %q", service), 400)
 		return
@@ -477,17 +444,6 @@ func (s *server) loginComicRocket(r *http.Request) (bool, []*http.Cookie, error)
 	 */
 }
 
-func (s *server) loginFunimation(r *http.Request) (bool, []*http.Cookie, error) {
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-	c := funimation.NewClient()
-	_, err := c.Login(username, password)
-	if err != nil {
-		return false, nil, err
-	}
-	return true, c.Cookies(), nil
-}
-
 func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	http.DefaultClient.Jar, _ = cookiejar.New(nil)
 	r.ParseForm()
@@ -500,8 +456,6 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	switch service {
 	case ComicRocketSlug:
 		success, cookies, err = s.loginComicRocket(r)
-	case FunimationSlug:
-		success, cookies, err = s.loginFunimation(r)
 	default:
 		err = errors.Errorf("invalid service %q", service)
 		return
